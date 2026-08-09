@@ -1,6 +1,6 @@
 # Gates — the phase hard-stops
 
-Every phase ends at a mandatory human-approval hard-stop. The agent makes **no phase-advancing or issue-creating action** until the exact phase token is given. This mirrors the implementation loop's review-gate idiom, but with **distinct per-phase tokens** so a phase gate is never confused with the executor's in-implementation test-approval gate (`shipit` in `ruby-dev`).
+Every phase ends at a mandatory human-approval hard-stop. The agent makes **no phase-advancing or issue-creating action** until the exact phase token is given. This mirrors the implementation loop's review-gate idiom, but with **distinct per-phase tokens** so a phase gate is never confused with the executor's in-implementation test-approval gate (`shipit`, defined in `dev-loop/LOOP.md`).
 
 ## Tokens and artifacts
 
@@ -48,4 +48,4 @@ the retry semantics belong in this ADR or their own — worth splitting?
 - **No pre-emptive work.** Do not create the next phase's epics, ADRs, or issues before its predecessor's gate has passed. No `gh issue create` until `discovery-approved` (Discovery) or `plan-approved` (Planning).
 - **No filing-and-working in one breath.** After `discovery-approved` files the question issues, the run **ends**. Resolving them is a separate user-initiated `discovery run`.
 - **One hard-stop minimum per phase.** A phase may pause for smaller confirmations, but it must always terminate at its token gate.
-- **Tokens are phase-scoped.** The implementation loop's own test-approval gate (`shipit` in `ruby-dev`) belongs to per-task execution — never use it as a phase gate, and never use a phase token to approve tests.
+- **Tokens are phase-scoped.** The implementation loop's own test-approval gate (`shipit`, defined in `dev-loop/LOOP.md`) belongs to per-task execution — never use it as a phase gate, and never use a phase token to approve tests.

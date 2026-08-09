@@ -13,7 +13,7 @@ It moves **any project, in any language** through **Discovery → Design → Pla
 
 Once a project has shipped its v1, it also serves as the **maintenance** entry point: `/gh-sdlc maintenance <setup|create|close-window>` (see [MAINTENANCE.md](./MAINTENANCE.md)).
 
-It **delegates, never duplicates**: `grill-me` for question elicitation, `grill-with-docs` for ADRs + `CONTEXT.md`, `to-issues`/`to-prd` for breakdown vocabulary, and the project's **implementation loop** (`ruby-dev` for Ruby/Rails) for the per-task execution loop.
+It **delegates, never duplicates**: `grill-me` for question elicitation, `grill-with-docs` for ADRs + `CONTEXT.md`, `to-issues`/`to-prd` for breakdown vocabulary, and the project's **implementation loop** (`ruby-dev` for standalone Ruby) for the per-task execution loop.
 
 ---
 
@@ -82,31 +82,57 @@ After `plan-approved`, publish the issues in dependency order and hand each task
 
 ## Implementation-loop pointer
 
-`gh-sdlc` owns the lifecycle **up to and including the issue breakdown**. It deliberately does not own per-task execution — that belongs to a language-specific **implementation loop**, declared once per project in `docs/project-workflow.md`. Example, for a **Ruby** project:
+`gh-sdlc` owns the lifecycle **up to and including the issue breakdown**. It deliberately does not own per-task execution — that belongs to a language-specific **implementation loop**, declared once per project in `docs/project-workflow.md`. Only the executor line is required:
 
 ```markdown
 ## Implementation loop
 
 - **Executor:** `/ruby-dev`
-- **Test command:** `bundle exec rspec <path>`
-- **Lint command:** `bundle exec rubocop`
-- **Test-file convention:** `spec/` mirrors `lib/` / `app/`, `_spec.rb` suffix
 ```
 
-**Resolution.** Read this on entry (step 2 of *On entry*). Everywhere this skill, [PLANNING.md](./PLANNING.md), or [MAINTENANCE.md](./MAINTENANCE.md) says "the implementation loop", it means the executor declared there. If the section is missing, **ask the user which executor the project uses and record their answer** in `docs/project-workflow.md` before proceeding. Never infer a Ruby executor because the GitHub substrate looks familiar, and never invent test or lint commands for a stack you have not confirmed.
+Every other slot (test command, lint command, test-file convention) is declared by the adapter as its language default. A project states one **only to override** the default — for example to record that a linter the adapter names is not installed in this repo:
+
+```markdown
+- **Lint command:** `bundle exec rubocop` — **not configured in this project** (no `rubocop` gem in the `Gemfile`)
+```
+
+**Resolution.** Read this on entry (step 2 of *On entry*). Everywhere this skill, [PLANNING.md](./PLANNING.md), or [MAINTENANCE.md](./MAINTENANCE.md) says "the implementation loop", it means the executor declared there. Slots resolve **adapter default first, project override second**; when a phase needs a concrete command, read both and say which source supplied it. If the section is missing, **ask the user which executor the project uses and record their answer** in `docs/project-workflow.md` before proceeding. Never infer a Ruby executor because the GitHub substrate looks familiar, and never invent test or lint commands for a stack you have not confirmed.
 
 ### The contract an executor must satisfy
 
-| Capability | What `gh-sdlc` relies on |
-|---|---|
-| **Pre-flight housekeeping** | assign the issue, Status → In Progress, branch `em/<issue#>_<task_slug>`, cascade the parent epic |
-| **Test-approval gate** | a per-task human gate on the tests before implementation proceeds (`shipit` in `ruby-dev`) — distinct from the phase tokens in [GATES.md](./GATES.md) |
-| **Atomic commits** | smallest independently-green, independently-revertable units, with single-line messages, tests shipped with their implementation |
-| **Draft PR** | one task = one draft PR carrying `Closes #<issue>` |
-| **Review loop** | address automated/human review feedback before merge |
-| **Close-out** | merge, Status → Done, and the epic cascade when the parent's last child closes |
+A conforming executor is a **dev-loop adapter**: a skill whose `SKILL.md` declares all nine language slots and loads the three shared stage files. That is checkable by inspection, which is the point — conformance is a structural property, not a judgment call.
 
-An executor that cannot honor every row is not a valid pointer target. Today the only conforming executor is **`ruby-dev`** (Ruby/Rails). For a project in another language, the pointer needs its own adapter — until one exists, **stop at the end of Planning and say so** rather than handing tasks to a mismatched loop.
+**Structural test.** The adapter must:
+
+1. Declare the **six mechanical slots** in a table: single-path test command, full-suite test command, lint probe, lint autocorrect and check, dependency repair, test-file convention.
+2. Declare the **three doctrine sections**: test-authoring idiom, architecture conventions, style and outline vocabulary.
+3. List and load `gh-dev-loop/PREFLIGHT.md`, `dev-loop/LOOP.md`, and `gh-dev-loop/CLOSEOUT.md`.
+4. Declare **no** slot for the approval token, gate behavior, or skipping the gate. An adapter that declares one is non-conforming; report it rather than honoring it.
+
+**What the bundles guarantee** on a conforming adapter's behalf — `gh-sdlc` relies on all six, and none of them are the adapter's to reimplement:
+
+| Capability | Guaranteed by |
+|---|---|
+| **Pre-flight housekeeping** | `gh-dev-loop/PREFLIGHT.md` — assign the issue, Status → In Progress, branch `em/<issue#>_<task_slug>`, cascade the parent epic |
+| **Test-approval gate** | `dev-loop/LOOP.md` — a per-task human gate (`shipit`) on the tests before implementation proceeds, distinct from the phase tokens in [GATES.md](./GATES.md) |
+| **Atomic commits** | `dev-loop/LOOP.md` — smallest independently-green, independently-revertable units, single-line messages, tests shipped with their implementation |
+| **Draft PR** | `gh-dev-loop/CLOSEOUT.md` — one task = one draft PR carrying `Closes #<issue>` |
+| **Review loop** | `gh-dev-loop/CLOSEOUT.md` — address automated/human review feedback before merge |
+| **Close-out** | `gh-dev-loop/CLOSEOUT.md` — merge, Status → Done, and the epic cascade when the parent's last child closes |
+
+**Conforming executors today:**
+
+- **`ruby-dev`** — standalone Ruby (gems, CLIs, Rack/Sinatra). Not Rails.
+
+### When a project has no conforming executor
+
+Do not hand tasks to a mismatched loop, and do not merely stop. The halt has a prescribed remedy, because an adapter is cheap once the toolchain is decided:
+
+1. **Design must fix the slots.** The Design phase produces an ADR naming the test runner, the linter, and the test-file convention. This is compelled anyway — [PLANNING.md](./PLANNING.md)'s pre-publish check forbids publishing a brief whose acceptance names a command the pointer cannot supply.
+2. **Planning's first task authors the adapter.** The WBS opens with a `type:chore` task creating the adapter from that ADR, `addBlockedBy`-wired as a blocker of every other implementation task, so implementation cannot structurally begin without it.
+3. **Then the pointer is updated** to name the new executor, and the project proceeds normally.
+
+Adapters live in the shared skills tree, not in the project repo, so they stay reusable by any project in that language.
 
 ### Invariant — Planning must never contradict the pointer
 

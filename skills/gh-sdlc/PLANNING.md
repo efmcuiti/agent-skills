@@ -6,7 +6,7 @@
 
 Goal of the phase: convert the Design WBS skeleton into the proven GitHub-native breakdown — the same structure validated on the `slack-status-cli` refactor — where each task body **is** the brief a future agent runs end-to-end via the project's **implementation loop**.
 
-**Resolve the implementation-loop pointer before drafting anything** (see [SKILL.md](./SKILL.md#implementation-loop-pointer)). The pointer supplies the executor name, the test command, the lint command, and the test-file convention that this phase writes into every task brief. Do not draft briefs from memory of another project's stack.
+**Resolve the implementation-loop pointer before drafting anything** (see [SKILL.md](./SKILL.md#implementation-loop-pointer)). The pointer names the executor; the executor's own slot table supplies the test command, the lint command, and the test-file convention that this phase writes into every task brief. Resolve each slot **adapter default first, project override second** — read the adapter's `SKILL.md` for the default and the repo's `docs/project-workflow.md` for any override, and state which source you used. Do not draft briefs from memory of another project's stack.
 
 ## 1. Draft the WBS as a numbered proposal (no issues yet)
 
@@ -50,28 +50,28 @@ Each task body is a **self-contained brief** the executing agent reads instead o
 7. **Linked issues** — **Parent** (epic, via `gh sub-issue add`), **Blocked by** (`addBlockedBy`), **Related** (`#N` refs).
 8. **References** — parent epic, the Design ADR/section, the executor guideline sections to load.
 
-**Worked example — Ruby (`/ruby-dev` pointer).** Illustrative only; the shapes below are *this pointer's* conventions, not the template's:
+**Worked example — standalone Ruby (`/ruby-dev` pointer).** Illustrative only; the shapes below are *this pointer's* conventions, not the template's:
 
 ```
 New surface:
   MyApp::Orders::Builders::TotalCents
     .call(line_items:, currency:) -> Integer
-  File: app/services/orders/builders/total_cents.rb   (or lib/... for non-Rails)
-  Spec: spec/services/orders/builders/total_cents_spec.rb
+  File: lib/my_app/orders/builders/total_cents.rb
+  Spec: spec/my_app/orders/builders/total_cents_spec.rb
   Responsibility: sum line items into integer cents for the given currency.
 
 Test plan: unit specs only — describe/context/it outline; real fakes over RSpec
-  doubles, plain Ruby builders over FactoryBot for standalone Ruby (FactoryBot is
-  fine in a Rails app).
+  doubles, plain Ruby builders in spec/support/ over FactoryBot.
 Acceptance: spec exists, impl exists, `bundle exec rspec <path>` green,
-  Rubocop clean if configured, draft PR opened with `Closes #<this issue>`.
+  Rubocop clean if the probe says it is configured, draft PR opened with
+  `Closes #<this issue>`.
 ```
 
 A Node project's brief would instead name its own runner, its own test-file convention, and its own lint command — resolved from that project's pointer. If you cannot state the project's test command from the pointer, **stop and ask**; do not fall back to this example.
 
 ## 4. Publish (only after `plan-approved`)
 
-**Pre-publish pointer check (blocking).** Before the first `gh issue create`, re-read the implementation-loop pointer and confirm that every acceptance command, test path, and file-layout claim across all drafted briefs belongs to **that** executor. If any brief names a command the pointer does not own, fix the brief — do not publish it.
+**Pre-publish pointer check (blocking).** Before the first `gh issue create`, re-resolve every slot — the executor's adapter table for the defaults, the repo's `docs/project-workflow.md` for overrides — and confirm that every acceptance command, test path, and file-layout claim across all drafted briefs belongs to **that** resolved set. If any brief names a command neither source owns, fix the brief — do not publish it. If the project has no conforming executor at all, follow the prescribed remedy in [SKILL.md](./SKILL.md#when-a-project-has-no-conforming-executor) rather than publishing briefs with unsatisfiable acceptance.
 
 Then publish in dependency order so real issue numbers can be referenced:
 
@@ -86,10 +86,10 @@ See [SUBSTRATE.md](./SUBSTRATE.md) for the exact `gh sub-issue` / `addBlockedBy`
 
 ## 5. Implementation handoff
 
-Planning is done once the issues exist and are approved. Execution is **not** re-implemented here — each task is run by the project's implementation loop (`/ruby-dev` for Ruby/Rails; see the [pointer contract](./SKILL.md#implementation-loop-pointer)), which owns:
+Planning is done once the issues exist and are approved. Execution is **not** re-implemented here — each task is run by the executor named in the project's pointer (see the [pointer contract](./SKILL.md#implementation-loop-pointer)), whose shared bundles own:
 
 - Pre-flight housekeeping (assign, Status → In Progress, branch `em/<issue#>_<task_slug>`, cascade parent epic).
 - The test-first red-green-refactor loop with its own test-approval gate (distinct from this skill's phase gates).
 - Atomic single-line commits, draft PR, automated-review loop, and close-out (merge + Status → Done + epic cascade).
 
-`gh-sdlc` selects the next runnable task (open `type:task`, `blocked_by == 0`) and invokes the executor on it; it does not duplicate that loop. If the project has no conforming executor for its language, stop here and report that instead of improvising an execution loop.
+`gh-sdlc` selects the next runnable task (open `type:task`, `blocked_by == 0`) and invokes the executor on it; it does not duplicate that loop. If the project has no conforming executor for its language, do not improvise one — follow the prescribed remedy in [SKILL.md](./SKILL.md#when-a-project-has-no-conforming-executor): the Design ADR fixes the slots, and the WBS opens with an adapter-authoring `type:chore` blocking every other task.

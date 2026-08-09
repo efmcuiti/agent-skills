@@ -33,7 +33,7 @@ Maintenance adds three directly-executable issue types (created by `SUBSTRATE.md
 | `type:enhancement` | A small improvement / feature ask | Normal test-first red for the new behavior |
 | `type:chore` | Deps, CI, docs, no-behavior-change refactor | Normal test-first red, or the pure-presentation carve-out for docs-only |
 
-- A standalone typed issue is executed by the implementation loop exactly like a `type:task`, minus the parent-epic cascade (for `ruby-dev`, see `ruby-dev/SKILL.md` → Maintenance mode).
+- A standalone typed issue is executed by the implementation loop exactly like a `type:task`, minus the parent-epic cascade (see `gh-dev-loop/PREFLIGHT.md` → Maintenance mode).
 - `type:task` / `type:epic` / `type:research` / `type:spike` stay reserved for `/gh-sdlc` feature breakdowns.
 - **`phase:*` is retired for standalone maintenance issues** — the milestone is the grouping now. `phase:*` reappears only inside an escalated feature epic if you want swimlanes.
 
