@@ -116,7 +116,7 @@ A conforming executor is a **dev-loop adapter**: a skill whose `SKILL.md` declar
 | **Pre-flight housekeeping** | `gh-dev-loop/PREFLIGHT.md` — assign the issue, Status → In Progress, branch `em/<issue#>_<task_slug>`, cascade the parent epic |
 | **Test-approval gate** | `dev-loop/LOOP.md` — a per-task human gate (`shipit`) on the tests before implementation proceeds, distinct from the phase tokens in [GATES.md](./GATES.md) |
 | **Atomic commits** | `dev-loop/LOOP.md` — smallest independently-green, independently-revertable units, single-line messages, tests shipped with their implementation |
-| **Draft PR** | `gh-dev-loop/CLOSEOUT.md` — one task = one draft PR carrying `Closes #<issue>` |
+| **Draft PR** | `gh-dev-loop/CLOSEOUT.md` — one task = one draft PR carrying `Closes #<issue>`, or the tracking-issue URL when the deliverable repo differs |
 | **Review loop** | `gh-dev-loop/CLOSEOUT.md` — address automated/human review feedback before merge |
 | **Close-out** | `gh-dev-loop/CLOSEOUT.md` — merge, Status → Done, and the epic cascade when the parent's last child closes |
 
@@ -132,7 +132,7 @@ Do not hand tasks to a mismatched loop, and do not merely stop. The halt has a p
 2. **Planning's first task authors the adapter.** The WBS opens with a `type:chore` task creating the adapter from that ADR, `addBlockedBy`-wired as a blocker of every other implementation task, so implementation cannot structurally begin without it.
 3. **Then the pointer is updated** to name the new executor, and the project proceeds normally.
 
-Adapters live in the shared skills tree, not in the project repo, so they stay reusable by any project in that language.
+Adapters live in the shared skills tree, not in the project repo, so they stay reusable by any project in that language. **That makes the adapter task cross-repo, and it has a precondition:** the skills tree must itself be a git repo with a working remote, or the task cannot open a PR and there is nothing to review. Verify it before publishing the WBS (Planning's pre-publish deliverable-repo check), and if the tree has never been pushed, provision the remote first. The task's issue and board stay with the project; only the branch and PR live in the skills repo — see [PREFLIGHT.md](../gh-dev-loop/PREFLIGHT.md) → *When the deliverable lives in another repo*.
 
 ### Invariant — Planning must never contradict the pointer
 

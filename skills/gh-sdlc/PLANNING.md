@@ -44,11 +44,12 @@ Each task body is a **self-contained brief** the executing agent reads instead o
 1. **Context** — 1-2 sentences placing this unit inside the epic; link the parent epic.
 2. **Old code** — `file:line` reference into existing behavior (refactor), so the agent reads it directly.
 3. **New surface** — exact entry point/signature, namespace or module path, implementation file path, test file path (per the pointer's test-file convention), and a one-sentence responsibility.
-4. **Test plan** — the outline of cases at the granularity the executor's loop expects, plus a **Fixtures / Fakes** note listing the helpers and fake collaborators the tests need. Prefer purpose-built fakes over mocking frameworks.
-5. **Commit plan** — the executor's commit list (usually 1-3), tests+impl together per commit.
-6. **Acceptance** — machine-checkable, and **written with the pointer's own commands**: test file exists, impl exists, *the pointer's test command* green for that path, *the pointer's lint command* clean if the project configures one, draft PR opened with `Closes #<this issue>`.
-7. **Linked issues** — **Parent** (epic, via `gh sub-issue add`), **Blocked by** (`addBlockedBy`), **Related** (`#N` refs).
-8. **References** — parent epic, the Design ADR/section, the executor guideline sections to load.
+4. **Deliverable repo** — include this line **only when the code lands outside this project's repo**; omit it entirely for ordinary same-repo work. The adapter-authoring task is the standard case, since an adapter belongs in the shared skills tree rather than in one project that happens to need it. Name the repo and state plainly that the PR opens there while this issue and the board stay here, so the executing agent takes the cross-repo path in [PREFLIGHT.md](../gh-dev-loop/PREFLIGHT.md) rather than discovering at PR time that `Closes #N` cannot reach across repos.
+5. **Test plan** — the outline of cases at the granularity the executor's loop expects, plus a **Fixtures / Fakes** note listing the helpers and fake collaborators the tests need. Prefer purpose-built fakes over mocking frameworks.
+6. **Commit plan** — the executor's commit list (usually 1-3), tests+impl together per commit.
+7. **Acceptance** — machine-checkable, and **written with the pointer's own commands**: test file exists, impl exists, *the pointer's test command* green for that path, *the pointer's lint command* clean if the project configures one, draft PR opened with `Closes #<this issue>` (or, cross-repo, carrying the tracking-issue URL).
+8. **Linked issues** — **Parent** (epic, via `gh sub-issue add`), **Blocked by** (`addBlockedBy`), **Related** (`#N` refs).
+9. **References** — parent epic, the Design ADR/section, the executor guideline sections to load.
 
 **Worked example — standalone Ruby (`/ruby-dev` pointer).** Illustrative only; the shapes below are *this pointer's* conventions, not the template's:
 
@@ -70,6 +71,8 @@ Acceptance: spec exists, impl exists, `bundle exec rspec <path>` green,
 A Node project's brief would instead name its own runner, its own test-file convention, and its own lint command — resolved from that project's pointer. If you cannot state the project's test command from the pointer, **stop and ask**; do not fall back to this example.
 
 ## 4. Publish (only after `plan-approved`)
+
+**Pre-publish deliverable-repo check (blocking).** For every brief that declares a deliverable repo other than this project's, confirm that repo exists and has a working remote (`git ls-remote origin` inside it, or `gh repo view <REPO>`). A brief pointing at a directory that has never been pushed is unworkable — the executor gets all the way to PR-open before it fails. Provision the remote, or hold the brief.
 
 **Pre-publish pointer check (blocking).** Before the first `gh issue create`, re-resolve every slot — the executor's adapter table for the defaults, the repo's `docs/project-workflow.md` for overrides — and confirm that every acceptance command, test path, and file-layout claim across all drafted briefs belongs to **that** resolved set. If any brief names a command neither source owns, fix the brief — do not publish it. If the project has no conforming executor at all, follow the prescribed remedy in [SKILL.md](./SKILL.md#when-a-project-has-no-conforming-executor) rather than publishing briefs with unsatisfiable acceptance.
 

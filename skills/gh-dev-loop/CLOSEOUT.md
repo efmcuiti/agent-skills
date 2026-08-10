@@ -4,7 +4,9 @@ The GitHub-substrate tail of the per-task development loop — steps 11 to 13, p
 
 > **Loaded by a language adapter, never invoked directly.** Post a **Loaded-Files ACK** after reading it.
 
-**Project facts** (`<OWNER/REPO>`, `<ASSIGNEE>`, `<REVIEW_BOT>`, `<PROJECT_NODE_ID>`, `<STATUS_FIELD_ID>`, `<DONE_OPTION_ID>`, `<BRANCH_PREFIX>`, and any project-specific manual-smoke keywords) are resolved from the repo's `docs/project-workflow.md`. **A missing required fact is a hard stop** — ask for it rather than guessing. See [PREFLIGHT.md](./PREFLIGHT.md) for the full placeholder table.
+**Project facts** (`<TRACKING_REPO>`, `<DELIVERABLE_REPO>`, `<ASSIGNEE>`, `<REVIEW_BOT>`, `<REVIEW_REQUEST_LOGIN>`, `<PROJECT_NODE_ID>`, `<STATUS_FIELD_ID>`, `<DONE_OPTION_ID>`, `<BRANCH_PREFIX>`, `<PROJECT_KEYWORDS>`) are resolved from the repo's `docs/project-workflow.md`. **A missing required fact is a hard stop** — ask for it rather than guessing. See [PREFLIGHT.md](./PREFLIGHT.md) for the full placeholder table.
+
+**Two repos, when they differ.** `<DELIVERABLE_REPO>` defaults to `<TRACKING_REPO>` and the distinction is invisible on a normal task. When a task declares a different deliverable repo, the PR, the merge, and the review threads live there, while the issue, the board, and the epic cascade stay in `<TRACKING_REPO>` — see [PREFLIGHT.md](./PREFLIGHT.md) → *When the deliverable lives in another repo* for the full division.
 
 ---
 
@@ -28,7 +30,7 @@ The GitHub-substrate tail of the per-task development loop — steps 11 to 13, p
 
   ```bash
   gh pr create \
-    --repo <OWNER/REPO> \
+    --repo <DELIVERABLE_REPO> \
     --title "{conventional commit title}" \
     --draft \
     --assignee <ASSIGNEE> \
@@ -56,6 +58,8 @@ The GitHub-substrate tail of the per-task development loop — steps 11 to 13, p
   ```
 
 - Report the PR URL back to the user.
+
+  **Cross-repo PR body.** `Closes #{N}` only closes an issue in the PR's own repo. When `<DELIVERABLE_REPO>` differs from `<TRACKING_REPO>`, replace that line with an explicit link — `Implements <TRACKING_REPO>#{N}` written as the full `https://github.com/<TRACKING_REPO>/issues/{N}` URL — so the reference is clickable from a repo that shares no issue numbering. Do **not** leave a bare `Closes #{N}` there: it silently resolves to whatever issue happens to hold that number in the deliverable repo, or to nothing at all.
 
 ### Collapsible manual-smoke steps (hard rule)
 
@@ -97,7 +101,7 @@ Tick boxes incrementally, but only when genuinely verified.
 - **Human-attestation exception.** If the user has already verified a manual-only item, tick the box and annotate it as human-attested. Do **not** re-run a destructive setup just to self-verify, and do not leave it blank. Attestation makes the item verified, so this is consistent with the rule above; only tick items the user has actually attested or you have proven. Attestation arrives **two** ways, and both count — annotate which one:
   - **Verbally in chat** ("I already ran the smoke test, mark it") → `- [x] Manual smoke test (verified manually by @<ASSIGNEE>)`
   - **Recorded in the PR/issue body or a comment** (a `### Manual smoke results` section with transcripts/screenshots) → `- [x] Live manual smoke (real credentials) — verified manually by @<ASSIGNEE> (results in PR body)`, so the audit trail says *where* the proof lives. Grade the posted evidence before ticking (Step 13.4a).
-- Update issue boxes with `gh issue edit {N} --body-file <updated>`; update PR boxes with `gh pr edit {N} --body-file <updated>`.
+- Update issue boxes with `gh issue edit {N} --repo <TRACKING_REPO> --body-file <updated>`; update PR boxes with `gh pr edit {N} --repo <DELIVERABLE_REPO> --body-file <updated>`.
 
 ---
 
@@ -110,18 +114,18 @@ The recipes below are the mechanics; `docs/project-workflow.md` supplies only th
 **1. List open (unaddressed) inline comments** — top-level only, oldest first; replies carry a non-null `in_reply_to_id` and are filtered out:
 
 ```bash
-gh api 'repos/<OWNER/REPO>/pulls/{N}/comments?sort=created&direction=asc&per_page=100' \
+gh api 'repos/<DELIVERABLE_REPO>/pulls/{N}/comments?sort=created&direction=asc&per_page=100' \
   --jq '.[] | select(.in_reply_to_id==null) | "id=\(.id)\t\(.path):\(.line // .original_line)\t\(.user.login)\n\(.body)\n"'
 
 # Review summary bodies (the "reviewed N changed files" verdicts):
-gh api repos/<OWNER/REPO>/pulls/{N}/reviews \
+gh api repos/<DELIVERABLE_REPO>/pulls/{N}/reviews \
   --jq '.[] | select(.user.login | test("<REVIEW_BOT>"; "i")) | "\(.submitted_at)\t\(.state)\n\(.body)\n"'
 ```
 
 **2. Reply to a comment** — only after the fix is committed and pushed, citing the SHA:
 
 ```bash
-gh api repos/<OWNER/REPO>/pulls/{N}/comments/<COMMENT_ID>/replies \
+gh api repos/<DELIVERABLE_REPO>/pulls/{N}/comments/<COMMENT_ID>/replies \
   -f body="Good catch — fixed in <SHA>. <one-line explanation>."
 ```
 
@@ -137,7 +141,7 @@ gh api graphql -f query='
         }
       }
     }
-  }' -f owner=<OWNER> -f name=<REPO> -F pr={N} \
+  }' -f owner=<DELIVERABLE_OWNER> -f name=<DELIVERABLE_NAME> -F pr={N} \
   --jq '.data.repository.pullRequest.reviewThreads.nodes[] | "\(.id)\t\(.isResolved)\t\(.path)\t\(.comments.nodes[0].author.login)"'
 ```
 
@@ -150,7 +154,7 @@ gh api graphql -f query='mutation { resolveReviewThread(input: { threadId: "<PRR
 **5. Re-request review** — LAST, only once every comment in the round is fixed, pushed, replied to, and resolved:
 
 ```bash
-gh api repos/<OWNER/REPO>/pulls/{N}/requested_reviewers \
+gh api repos/<DELIVERABLE_REPO>/pulls/{N}/requested_reviewers \
   -X POST -f "reviewers[]=<REVIEW_REQUEST_LOGIN>"
 ```
 
@@ -212,20 +216,21 @@ Run this **only when the user asks to merge / complete the work** — never auto
    ```bash
    # Detect an unchecked manual/unverifiable box across PR + issue bodies (deduped).
    # Non-empty output => run the gate before merging.
-   { gh pr view {N} --json body --jq .body; gh issue view <ISSUE> --json body --jq .body; } \
+   { gh pr view {N} --repo <DELIVERABLE_REPO> --json body --jq .body; \
+     gh issue view <ISSUE> --repo <TRACKING_REPO> --json body --jq .body; } \
      | grep -E '^[[:space:]]*- \[ \]' \
      | grep -iE 'smoke|manual|live token|real token|hardware|browser|verified manually<PROJECT_KEYWORDS>' \
      | sort -u
 
    # Evidence pre-check: fetch the whole body AND the comments fresh, then locate evidence.
    gh pr view {N} --json body --jq .body > /tmp/pr_body.md
-   gh api repos/<OWNER/REPO>/issues/{N}/comments --jq '.[].body' > /tmp/pr_comments.md
+   gh api repos/<DELIVERABLE_REPO>/issues/{N}/comments --jq '.[].body' > /tmp/pr_comments.md
    grep -inE '^#{1,4} .*(smoke|manual).*(result|evidence|output|run|verified)' /tmp/pr_body.md /tmp/pr_comments.md
    grep -cE '<img |!\[' /tmp/pr_body.md /tmp/pr_comments.md   # per file: LINES holding an image ref, not an image count
    gh pr view {N} --comments   # then read them in context (also surfaces review bodies)
    ```
 
-   Annotating the box after the routing decision — edit the fetched body, then push it back with `gh pr edit {N} --body-file` (and `gh issue edit <ISSUE> --body-file` when the same box lives on the issue):
+   Annotating the box after the routing decision — edit the fetched body, then push it back with `gh pr edit {N} --repo <DELIVERABLE_REPO> --body-file` (and `gh issue edit <ISSUE> --repo <TRACKING_REPO> --body-file` when the same box lives on the issue):
 
    - **waived** → append ` (waived by @<ASSIGNEE> at close — not run)` to the matched `- [ ]` line, left unticked.
    - **evidence-attested** → change the line to `- [x] ... — verified manually by @<ASSIGNEE> (results in <PR body | comment <id>>)`, naming the location the pre-check actually found.
@@ -233,14 +238,14 @@ Run this **only when the user asks to merge / complete the work** — never auto
 5. **Merge.** Squash-merge and delete the branch:
 
    ```bash
-   gh pr merge {N} --repo <OWNER/REPO> --squash --delete-branch
+   gh pr merge {N} --repo <DELIVERABLE_REPO> --squash --delete-branch
    ```
 
 6. **Set the task to Done.** Run the canonical Status mutation from [gh-sdlc/SUBSTRATE.md](../gh-sdlc/SUBSTRATE.md) with `<DONE_OPTION_ID>`. Closing an issue does **not** auto-move its project item, so this explicit step is required.
-7. **Verify the issue closed.** `Closes #N` in the PR body should have closed it on merge; if not, close it explicitly (`gh issue close {N}`).
-8. **Sync local main.** `git checkout main && git pull --ff-only`.
+7. **Verify the issue closed.** `Closes #N` in the PR body should have closed it on merge; if not, close it explicitly (`gh issue close {N} --repo <TRACKING_REPO>`). **A cross-repo PR never auto-closes**, so when the repos differ this explicit close is the normal path rather than the fallback.
+8. **Sync local main.** `git checkout main && git pull --ff-only` in `<DELIVERABLE_REPO>`'s working tree — the one the branch was merged into.
 9. **Epic-finish cascade.** Check whether this was the epic's last open task:
-   - `gh api repos/<OWNER/REPO>/issues/{EPIC}/sub_issues` lists every child with its `state`; the epic's `sub_issues_summary` (`completed`/`total`) is the quick check.
+   - `gh api repos/<TRACKING_REPO>/issues/{EPIC}/sub_issues` lists every child with its `state`; the epic's `sub_issues_summary` (`completed`/`total`) is the quick check.
    - If **every** child is now `closed`, tick the epic's acceptance boxes, set the epic Status to Done, assign it to `<ASSIGNEE>` if unassigned, and close it.
    - Otherwise leave the epic In Progress.
 
