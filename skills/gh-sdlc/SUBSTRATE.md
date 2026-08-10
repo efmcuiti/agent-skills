@@ -4,6 +4,19 @@ The GitHub-only substrate every `gh-sdlc` phase tracks against: Issues, Projects
 
 This is **plain pre-tracking plumbing, not an "Epic 0" tracking issue.** Do not file an issue to record that you bootstrapped — just run the routine. Every step is guarded (`|| true`, existence checks) so re-running is safe and idempotent.
 
+## Mechanics live in the bundles; facts live in the project doc
+
+A recipe copied into N repos drifts in N-1 of them. That is not hypothetical: when GitHub renamed `addBlockedBy`'s input field, the corrected recipe in this file did nothing for the stale copy sitting in a project's own doc, and a whole dependency-wiring pass failed against it.
+
+So the split is strict, and it is the rule every phase file follows:
+
+| Kind | Example | Lives in |
+|---|---|---|
+| **Mechanic** — the shape of a command, mutation, or procedure | the `addBlockedBy` mutation, the Status mutation, the manual-smoke gate, the review-response loop | the owning bundle file (this file, [CLOSEOUT.md](../gh-dev-loop/CLOSEOUT.md), [PREFLIGHT.md](../gh-dev-loop/PREFLIGHT.md)) |
+| **Fact** — a per-project value substituted into a mechanic | `OWNER/REPO`, project/field/option IDs, assignee, review-bot login, branch prefix, declared phase values, milestone naming | that repo's `docs/project-workflow.md` |
+
+`docs/project-workflow.md` is therefore a **facts file with links**, never a cookbook. When a phase needs a mechanic, read it from the bundle and substitute the project's facts — do not copy the mechanic into the project doc "for convenience", and when you find one already copied there, treat the bundle as authoritative and delete the copy.
+
 ## When to run
 
 1. On any `/gh-sdlc` invocation, check for `docs/project-workflow.md`.
@@ -26,12 +39,10 @@ gh label create "type:bug"         --color d73a4a --description "Defect against 
 gh label create "type:enhancement" --color a2eeef --description "Small improvement / feature ask" || true
 gh label create "type:chore"       --color cfd3d7 --description "Deps, CI, docs, no-behavior-change refactor" || true
 
-# Phase (drives board grouping; Discovery/Design added on top of the proven extraction/cleanup set)
+# Phase — only the two the lifecycle itself owns. The implementation phases are
+# named by Design (see below), because their vocabulary depends on the project.
 gh label create "phase:discovery"  --color ededed || true
 gh label create "phase:design"     --color ededed || true
-gh label create "phase:foundation" --color ededed || true
-gh label create "phase:extraction" --color ededed || true
-gh label create "phase:cleanup"    --color ededed || true
 
 # Size
 gh label create "size:s" --color fef2c0 || true
@@ -43,6 +54,8 @@ gh label create "tdd:red-gate" --color e99695 --description "Has at least one te
 ```
 
 `pod:*` / area labels are project-specific — create them when the Design phase names the areas, not here.
+
+**Implementation `phase:*` labels are deferred to Design for the same reason.** The original set (`foundation` / `extraction` / `cleanup`) came from a refactor, where "extraction" means pulling behavior out of a monolith; on a greenfield project it means nothing, and reaching for it produces labels a reader has to reinterpret. Design names the implementation phases when it names the areas, defaulting to **`foundation` / `build` / `hardening`** when the project has no better vocabulary of its own, and a refactor is free to keep `extraction` / `cleanup` because there the words are accurate. Whatever Design picks gets created then and recorded in `docs/project-workflow.md`, which is what the Implementation board view filters on.
 
 ## Project + custom fields
 
@@ -56,12 +69,12 @@ fi
 gh project link "$PROJECT_NUMBER" --owner @me --repo <OWNER>/<REPO> || true
 ```
 
-The built-in **Status** field (`Todo` / `In Progress` / `Done`) is the only load-bearing field — labels carry pod/size/phase/type, so **do not recreate them as custom fields** (they drift out of sync with labels). Add an optional `Phase` single-select only if the user wants board swimlanes:
+The built-in **Status** field (`Todo` / `In Progress` / `Done`) is the only load-bearing field — labels carry pod/size/phase/type, so **do not recreate them as custom fields** (they drift out of sync with labels). Add an optional `Phase` single-select only if the user wants board swimlanes, and build its options from the phases this project actually declared rather than a fixed list:
 
 ```bash
 gh project field-create "$PROJECT_NUMBER" --owner @me --name "Phase" \
   --data-type SINGLE_SELECT \
-  --single-select-options "discovery,design,foundation,extraction,cleanup" || true
+  --single-select-options "discovery,design,<DECLARED_IMPLEMENTATION_PHASES>" || true
 ```
 
 ## Project views
@@ -87,7 +100,7 @@ gh api graphql -f query='
 
 ### Ensure a view for a phase (idempotent)
 
-Design and Planning call this on entry; it no-ops when a view with that name already exists. Note that `createProjectV2View` accepts **only** `projectId`, `name`, `layout`, and `configuration` — there is **no `filter` input on create**, so the filter is applied by a follow-up `updateProjectV2View`.
+[SKILL.md](./SKILL.md#on-entry-every-invocation)'s *On entry* calls this once for the detected phase — one call site rather than one per phase file, which is how the Design view came to be missing on a project that had already reached Planning. It no-ops when a view with that name already exists. Note that `createProjectV2View` accepts **only** `projectId`, `name`, `layout`, and `configuration` — there is **no `filter` input on create**, so the filter is applied by a follow-up `updateProjectV2View`.
 
 ```bash
 ensure_phase_view() {  # $1 = view name, $2 = board filter
@@ -125,7 +138,7 @@ ensure_phase_view() {  # $1 = view name, $2 = board filter
 |---|---|---|
 | Discovery | `Discovery` | `label:"phase:discovery"` |
 | Design | `Design` | `label:"phase:design"` |
-| Planning / Implementation | `Implementation` | `label:"phase:foundation","phase:extraction","phase:cleanup"` |
+| Planning / Implementation | `Implementation` | `label:` the implementation phases Design declared — e.g. `label:"phase:foundation","phase:build","phase:hardening"` |
 | Maintenance | current window `vX.Y` | `milestone:"vX.Y"` (see [MAINTENANCE.md](./MAINTENANCE.md)) |
 
 Record the view names and filters in `docs/project-workflow.md` so later runs read them instead of guessing — and so a human who renamed a view in the UI stays the source of truth. **Never rename or delete a view the user renamed themselves**; if the expected name is absent but a same-filter view exists, report it and leave it alone.
@@ -145,19 +158,43 @@ gh api graphql -f query='
 
 Record `PROJECT_ID`, the Status field ID, and the Todo/In Progress/Done option IDs.
 
+## Status field mutation (canonical recipe)
+
+A project's **Status does not auto-sync** with issue open/closed state — closing an issue, even via `Closes #N` on merge, leaves its project item untouched. Every Status change is therefore explicit, and this is the one place the mutation is written down. Substitute the IDs from the project's facts file.
+
+```bash
+# 1. Resolve the project item node ID for an issue number
+gh project item-list <PROJECT_NUMBER> --owner <OWNER> --format json --limit 100 \
+  | jq -r '.items[] | select(.content.number == <N>) | .id'
+
+# 2. Set the Status field (swap in the option ID for the target column)
+gh api graphql -f query='
+  mutation {
+    updateProjectV2ItemFieldValue(input: {
+      projectId: "<PROJECT_NODE_ID>"
+      itemId: "<ITEM_NODE_ID>"
+      fieldId: "<STATUS_FIELD_ID>"
+      value: { singleSelectOptionId: "<OPTION_ID>" }
+    }) { projectV2Item { id } }
+  }'
+```
+
+Adding an issue to the board, when it is not there already: `gh project item-add <PROJECT_NUMBER> --owner <OWNER> --url <ISSUE_URL>`.
+
 ## Write `docs/project-workflow.md`
 
-Write the captured IDs and the per-task lifecycle into `docs/project-workflow.md`, modeled on the canonical [slack-status-cli version](/Users/efmcuiti/Phoenix/git_toys/slack-status-cli/docs/project-workflow.md). It must contain at minimum:
+Write the **facts** into `docs/project-workflow.md` — not the mechanics (see [the split above](#mechanics-live-in-the-bundles-facts-live-in-the-project-doc)). Every section below is either a per-project value or a pointer at the bundle file that owns the corresponding procedure:
 
-- **Labels are the single source of truth** — the taxonomy table above; Status is the only project field.
-- **Project field IDs** — Project node, Status field, and the three Status option IDs.
+- **Labels are the single source of truth** — the taxonomy table above, including the implementation `phase:*` values this project declared; Status is the only project field.
+- **Project field IDs** — Project number and owner, Project node, Status field, and the three Status option IDs.
 - **Board views** — each view's name and filter, so later phases reuse them instead of recreating them.
-- **Native issue relationships** — the `gh api .../issues/<N> --jq .parent_issue_url`, `.issue_dependencies_summary.blocked_by`, and `.sub_issues_summary` recipes.
-- **Status mutation recipe** — the `updateProjectV2ItemFieldValue` GraphQL mutation with the captured IDs.
-- **Per-task lifecycle** — assign → In Progress → branch (`em/<issue#>_<task_slug>`) → cascade parent epic → draft PR → close-out, matching the implementation loop's flow.
-- **Implementation loop** — the executor for this project plus its test command, lint command, and test-file convention, per the [pointer contract](./SKILL.md#implementation-loop-pointer). Ask the user if the stack is not obvious; do not guess.
+- **Repos** — the tracking repo, plus any deliverable repo that differs from it (see [CLOSEOUT.md](../gh-dev-loop/CLOSEOUT.md)).
+- **Assignee, review bot, branch prefix** — the identities and conventions the implementation loop substitutes into its recipes.
+- **Implementation loop** — the executor for this project, per the [pointer contract](./SKILL.md#implementation-loop-pointer), plus any slot that genuinely *overrides* the adapter's default. Ask the user if the stack is not obvious; do not guess.
+- **Project-specific gate keywords** — any extra manual-smoke detection keywords beyond CLOSEOUT.md's defaults (e.g. the name of a desktop app the project drives).
+- **Links, not copies** — the linked-issue mechanics below, the Status mutation above, the per-task lifecycle in [PREFLIGHT.md](../gh-dev-loop/PREFLIGHT.md) and [CLOSEOUT.md](../gh-dev-loop/CLOSEOUT.md). Reference them by link so a bundle fix reaches every project at once.
 
-Once written, this file is the substrate's source of truth; later `/gh-sdlc` runs read it instead of re-deriving IDs.
+Once written, this file is the substrate's source of truth **for facts**; later `/gh-sdlc` runs read it instead of re-deriving IDs.
 
 ## Linked-issue mechanics (used by every phase)
 
@@ -176,4 +213,40 @@ gh api graphql -f query='
   mutation($issue: ID!, $blocker: ID!) {
     addBlockedBy(input: { issueId: $issue, blockingIssueId: $blocker }) { issue { number } }
   }' -F issue="$ISSUE_ID" -F blocker="$BLOCKER_ID"
+```
+
+### Probe one, then loop
+
+**Never run a bulk mutation loop without proving the mutation first.** Wire one edge, confirm the response, and only then iterate the rest. GitHub's schema moves under these recipes — `addBlockedBy`'s input field was renamed out from under this file — and a loop over 22 pairs fails 22 times just as readily as once, except that now you cannot tell which failures were the recipe and which were the data.
+
+This applies to every bulk pass: dependency edges, sub-issue wiring, label backfills, Status sweeps.
+
+**Iterating pairs safely.** Read them into named variables; do not rely on word-splitting:
+
+```bash
+# Correct — each pair lands in $child and $blocker regardless of shell.
+printf '%s\n' "24 21" "25 21" "26 24" | while read -r child blocker; do
+  echo "wiring $child blocked by $blocker"
+done
+```
+
+`set -- $pair` looks equivalent and is not: **zsh does not word-split unquoted parameter expansions**, so `$pair` arrives as the single string `"24 21"` and the second value silently goes missing. The failure surfaces as an unrelated complaint about an invalid argument, several layers away from the real cause.
+
+### Reading the relationships back
+
+These are the queries every phase and the implementation loop use to route work — the parent lookup, the blocked check that decides whether a task is workable, and the epic-completion check that drives the close-out cascade:
+
+```bash
+# These queries always run against <TRACKING_REPO> — the issue and board live
+# there even when the PR lands in a different deliverable repo.
+
+# Parent epic of a task — the trailing number of the returned URL is the epic:
+gh api repos/<TRACKING_REPO>/issues/<N> --jq .parent_issue_url
+
+# Is a task blocked? 0 = unblocked, >0 = skip it when selecting the next item:
+gh api repos/<TRACKING_REPO>/issues/<N> --jq .issue_dependencies_summary.blocked_by
+
+# Is an epic complete? Quick summary, then per-child detail:
+gh api repos/<TRACKING_REPO>/issues/<EPIC> --jq .sub_issues_summary
+gh api repos/<TRACKING_REPO>/issues/<EPIC>/sub_issues --jq '[.[] | {number, state}]'
 ```

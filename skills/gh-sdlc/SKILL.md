@@ -47,7 +47,8 @@ Never bulk-load all reference files up front. Load one phase file at a time. If 
 2. **Resolve the implementation-loop pointer** from `docs/project-workflow.md` (see [below](#implementation-loop-pointer)). Every later reference to "the implementation loop" means that skill.
 3. **Detect the current phase** from repo state (table below), or honor an explicit `/gh-sdlc <phase>` argument. A `/gh-sdlc maintenance <verb>` argument routes straight to Maintenance mode regardless of repo state; a `discovery run`/`discovery consolidate` verb routes to that Discovery stage.
 4. **Confirm greenfield vs refactor** if it is not already obvious — it changes the Discovery shape.
-5. **Load only that phase's reference file** (or [MAINTENANCE.md](./MAINTENANCE.md) for a maintenance verb), post a Loaded-Files ACK, and run it. Load [GATES.md](./GATES.md) when you reach the phase boundary.
+5. **Ensure the detected phase's board view** by running `ensure_phase_view` from [SUBSTRATE.md](./SUBSTRATE.md#project-views) with that phase's name and filter. It is idempotent, it is guarded (a view failure prints a manual-fallback note and never fails the run), and it belongs here rather than in each phase file so no phase can forget it. Never rename or delete a view a human named themselves.
+6. **Load only that phase's reference file** (or [MAINTENANCE.md](./MAINTENANCE.md) for a maintenance verb), post a Loaded-Files ACK, and run it. Load [GATES.md](./GATES.md) when you reach the phase boundary.
 
 ### Phase detection
 
@@ -98,6 +99,26 @@ Every other slot (test command, lint command, test-file convention) is declared 
 
 **Resolution.** Read this on entry (step 2 of *On entry*). Everywhere this skill, [PLANNING.md](./PLANNING.md), or [MAINTENANCE.md](./MAINTENANCE.md) says "the implementation loop", it means the executor declared there. Slots resolve **adapter default first, project override second**; when a phase needs a concrete command, read both and say which source supplied it. If the section is missing, **ask the user which executor the project uses and record their answer** in `docs/project-workflow.md` before proceeding. Never infer a Ruby executor because the GitHub substrate looks familiar, and never invent test or lint commands for a stack you have not confirmed.
 
+### The provisional state — slots fixed before their adapter exists
+
+There is a real window where a project knows its toolchain but has no adapter to own it: Design has produced the toolchain ADR, and the task that writes the adapter has not run yet. In that window the ordinary resolution order has nothing to resolve — there is no adapter table, so "adapter default first, project override second" reads as zero sources, and taken literally Planning could publish nothing at all.
+
+So that window is a **declared state**, not a hand-wave. A project in it records its slots in `docs/project-workflow.md` marked plainly as provisional, each **citing the ADR that fixed it**:
+
+```markdown
+## Implementation loop
+
+- **Executor:** `/node-dev` — **provisional (pending adapter)**
+- **Test command:** `node --test <path>` — fixed by ADR-0001
+- **Test-file convention:** `*.test.js` beside the unit under test — fixed by ADR-0001
+```
+
+Three rules make it safe:
+
+- **A cited ADR is a legitimate resolving source** while the state holds. Planning's pre-publish check accepts it and rejects any slot without a citation — a provisional block is not permission to guess, it is permission to rely on a decision that is already on the record.
+- **The state is self-terminating.** The adapter-authoring task's acceptance requires the adapter to declare exactly these slots and requires this provisional block to be deleted, leaving only genuine overrides. The state cannot outlive the adapter, because retiring it is part of the definition of done.
+- **It never unblocks implementation.** Provisional slots let Planning publish; they do not let a task be executed by an adapter that does not exist yet.
+
 ### The contract an executor must satisfy
 
 A conforming executor is a **dev-loop adapter**: a skill whose `SKILL.md` declares all nine language slots and loads the three shared stage files. That is checkable by inspection, which is the point — conformance is a structural property, not a judgment call.
@@ -116,7 +137,7 @@ A conforming executor is a **dev-loop adapter**: a skill whose `SKILL.md` declar
 | **Pre-flight housekeeping** | `gh-dev-loop/PREFLIGHT.md` — assign the issue, Status → In Progress, branch `em/<issue#>_<task_slug>`, cascade the parent epic |
 | **Test-approval gate** | `dev-loop/LOOP.md` — a per-task human gate (`shipit`) on the tests before implementation proceeds, distinct from the phase tokens in [GATES.md](./GATES.md) |
 | **Atomic commits** | `dev-loop/LOOP.md` — smallest independently-green, independently-revertable units, single-line messages, tests shipped with their implementation |
-| **Draft PR** | `gh-dev-loop/CLOSEOUT.md` — one task = one draft PR carrying `Closes #<issue>` |
+| **Draft PR** | `gh-dev-loop/CLOSEOUT.md` — one task = one draft PR carrying `Closes #<issue>`, or the tracking-issue URL when the deliverable repo differs |
 | **Review loop** | `gh-dev-loop/CLOSEOUT.md` — address automated/human review feedback before merge |
 | **Close-out** | `gh-dev-loop/CLOSEOUT.md` — merge, Status → Done, and the epic cascade when the parent's last child closes |
 
@@ -129,10 +150,11 @@ A conforming executor is a **dev-loop adapter**: a skill whose `SKILL.md` declar
 Do not hand tasks to a mismatched loop, and do not merely stop. The halt has a prescribed remedy, because an adapter is cheap once the toolchain is decided:
 
 1. **Design must fix the slots.** The Design phase produces an ADR naming the test runner, the linter, and the test-file convention. This is compelled anyway — [PLANNING.md](./PLANNING.md)'s pre-publish check forbids publishing a brief whose acceptance names a command the pointer cannot supply.
-2. **Planning's first task authors the adapter.** The WBS opens with a `type:chore` task creating the adapter from that ADR, `addBlockedBy`-wired as a blocker of every other implementation task, so implementation cannot structurally begin without it.
-3. **Then the pointer is updated** to name the new executor, and the project proceeds normally.
+2. **The pointer enters its provisional state.** The ADR's slots are recorded in `docs/project-workflow.md` as [provisional (pending adapter)](#the-provisional-state--slots-fixed-before-their-adapter-exists), each citing the ADR, so Planning has a legitimate source to draft acceptance criteria from instead of publishing unsatisfiable ones.
+3. **Planning's first task authors the adapter.** The WBS opens with a `type:chore` task creating the adapter from that ADR, `addBlockedBy`-wired as a blocker of every other implementation task, so implementation cannot structurally begin without it. Its acceptance requires the adapter to declare exactly the ADR's slots **and** the provisional block to be deleted from the pointer.
+4. **Then the pointer names the new executor** with only genuine overrides left behind, and the project proceeds normally.
 
-Adapters live in the shared skills tree, not in the project repo, so they stay reusable by any project in that language.
+Adapters live in the shared skills tree, not in the project repo, so they stay reusable by any project in that language. **That makes the adapter task cross-repo, and it has a precondition:** the skills tree must itself be a git repo with a working remote, or the task cannot open a PR and there is nothing to review. Verify it before publishing the WBS (Planning's pre-publish deliverable-repo check), and if the tree has never been pushed, provision the remote first. The task's issue and board stay with the project; only the branch and PR live in the skills repo — see [PREFLIGHT.md](../gh-dev-loop/PREFLIGHT.md) → *When the deliverable lives in another repo*.
 
 ### Invariant — Planning must never contradict the pointer
 

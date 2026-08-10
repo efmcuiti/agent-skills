@@ -17,7 +17,15 @@ These are the "technical decisions locked somewhere" — versioned in the repo, 
 
 ### Observability is a first-class design concern
 
-When the system does meaningful I/O — external calls, concurrency, long-running flows, error handling — **how it will be observed is a design decision, not an implementation afterthought.** Surface it during this phase and, when it clears the bar, capture it as its own ADR. The injected-diagnostic-logger pattern (a `telemetry:` seam defaulting to a `NullLogger`, with pluggable `scrub` + `correlation_tags`, separate from the human-output channel) is a textbook ADR candidate: it is **hard to reverse** (every orchestrator's signature carries the seam), **surprising without context** (a future reader wonders why logging is injected rather than a global), and **the result of a real trade-off** (injected DI vs. mixin vs. a global logger). Read the executor's observability guidance for the full contract (for a Ruby project, the bundled `ruby-dev/observability-guidelines.md` and its Rails vs. standalone adapters), then record the project's choice as an ADR and add the resulting vocabulary (diagnostic log, telemetry channel, `run_id`, scrub/correlation seams) to `CONTEXT.md`.
+When the system does meaningful I/O — external calls, concurrency, long-running flows, error handling — **how it will be observed is a design decision, not an implementation afterthought.** Raise it in this phase rather than leaving it to the first agent who needs a log line.
+
+Raising it has **three** legitimate outcomes, and the phase is not done until one of them is on the record:
+
+1. **Applicable → an ADR.** The system does the kind of I/O that needs observing. Record the seam as its own ADR and add the resulting vocabulary (diagnostic log, telemetry channel, `run_id`, scrub/correlation seams) to `CONTEXT.md`.
+2. **Not applicable → one line in the design artifact.** Some projects genuinely have nothing to instrument — a content pipeline whose whole output is a file on disk, a static generator with no network calls. Say so explicitly ("no telemetry seam in v1: no external calls, no concurrency, failures surface as a non-zero exit"), in the design artifact rather than in an ADR. This is not a skipped step; it is the answer, and writing it down is what stops Planning from inventing a diagnostic-logger epic the project does not need.
+3. **Executor not yet authored → defer to the adapter task.** The seam's *idiom* is language doctrine and belongs to the executor. When the project has no conforming executor yet, there is no observability guidance to read — do not stall and do not invent one. Record the architectural intent here and leave the concrete contract to the adapter-authoring task ([SKILL.md](./SKILL.md#when-a-project-has-no-conforming-executor)).
+
+**Worked example — the injected-diagnostic-logger pattern.** Illustrative of a decision that clears the ADR bar, not a shape every project must adopt: a `telemetry:` seam defaulting to a `NullLogger`, with pluggable `scrub` + `correlation_tags`, kept separate from the human-output channel. It qualifies because it is **hard to reverse** (every orchestrator's signature carries the seam), **surprising without context** (a future reader wonders why logging is injected rather than a global), and **the result of a real trade-off** (injected DI vs. mixin vs. a global logger). Where an executor exists, read its observability guidance for the full contract — for a Ruby project, the bundled `ruby-dev/observability-guidelines.md` and its Rails vs. standalone adapters.
 
 ## 2. Diagram the solution (Miro-primary)
 
@@ -40,10 +48,20 @@ If the Miro MCP is unavailable, or the project is too small to justify a board, 
 
 Produce a **generic work-breakdown skeleton** — the epic/task outline Planning will turn into real issues. This is prose in the design artifact, not `gh issue create` calls. For each prospective epic note its area, the tasks beneath it, rough size, and the cross-epic dependencies the diagrams revealed. This is the bridge into Planning; keep it coarse.
 
+**Name the implementation phases here too.** [SUBSTRATE.md](./SUBSTRATE.md#label-taxonomy) deliberately bootstraps only `phase:discovery` and `phase:design`, because the implementation phases describe *this* project's arc: a refactor moves through `extraction` and `cleanup`, while a greenfield build has nothing to extract. Pick the vocabulary that reads honestly for the work in front of you, defaulting to **`foundation` / `build` / `hardening`** when nothing better suggests itself, then create those labels and record them in `docs/project-workflow.md` — the Implementation board view filters on them, and Planning labels every epic and task with them.
+
 ## 4. Track the design work (optional epic)
 
 If the design itself is substantial, create one **Design epic** (`type:epic`, `phase:design`) with one sub-task per ADR/diagram so the work is visible on the board. For lightweight designs, a single PR is enough — don't manufacture tracking overhead.
 
-## 5. Reach the hard-stop
+## 5. Reconcile the docs the decisions just invalidated
 
-Open a PR carrying the ADRs, `CONTEXT.md` updates, the locked diagram artifact(s), and the WBS skeleton (single-line commit, branch `em/<epic#>_design_<slug>`). Then run the **Design gate** in [GATES.md](./GATES.md): present the decisions + diagrams, ask for the `design-approved` token, and **do not start Planning** until it's given and the PR is merged. The merged PR is the durable record.
+A locked decision usually contradicts something already written down. The README describes a directory the design just eliminated; a workflow doc names a command an ADR just replaced; a glossary still uses the term `CONTEXT.md` just sharpened. Left alone, these become the most trusted wrong documentation in the repo — a reader believes the README over an ADR they have never opened.
+
+So before opening the PR, **re-read the docs the decisions touch** and fix every contradiction in the same PR: the README, any doc it links, `docs/project-workflow.md`, and prior ADRs a new one supersedes (mark those superseded rather than editing history). The design PR is the atomic unit — a decision and the docs it invalidates land together, or the repo ships a self-contradiction whose resolution depends on which file the next reader opens first.
+
+Reconciliation is not automated review's job. If a bot finds one of these, the step was skipped.
+
+## 6. Reach the hard-stop
+
+Open a PR carrying the ADRs, `CONTEXT.md` updates, the locked diagram artifact(s), and the WBS skeleton (single-line commit). The branch is `em/<epic#>_design_<slug>` **when step 4 created a Design epic**, and `em/design_<slug>` when it did not — a lightweight design has no epic number to borrow, and inventing one to satisfy the pattern is worse than dropping it. Then run the **Design gate** in [GATES.md](./GATES.md): present the decisions + diagrams, ask for the `design-approved` token, and **do not start Planning** until it's given and the PR is merged. The merged PR is the durable record.

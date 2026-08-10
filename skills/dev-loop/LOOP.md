@@ -57,10 +57,22 @@ For small, single-commit tasks, skip this step and go straight to Step 1.
 - Follow the adapter's **test-authoring idiom** for fixtures, builders, and collaborator fakes.
 - **Unexpected green?** Strengthen expectations until red.
 
+### Carve-outs: work with no natural red
+
+Two kinds of work have no failing test to write, and for both the answer is the same — **do not fabricate a meaningless test**, substitute the appropriate checklist, and go through the identical gate at Steps 4-5 with the identical `shipit` token. What changes is the review package, never the review.
+
 **Presentational carve-out (UI work).** Split UI changes by their nature:
 
 - **View logic** (helpers, presenters, scoring — anything with branching) follows normal TDD: write a failing test here as usual.
-- **Pure presentation** (stylesheets, static markup with no branching) has no natural red. Do **not** fabricate a meaningless test. Instead, in place of a failing test, prepare the **visual-verification checklist** below — optionally with a best-effort screenshot. It still goes through the same mandatory gate (Steps 4-5) and the same `shipit` token.
+- **Pure presentation** (stylesheets, static markup with no branching) carries the **visual-verification checklist** below instead, optionally with a best-effort screenshot.
+
+**Attested carve-out (content and artifacts).** When the task brief declares `Verification: attested` — content migrated into a data file, documentation, a rendered artifact judged against a budget — there is no behavior to assert. Substitute the **attestation checklist**:
+
+- **Run the mechanical gate the brief names** (the schema validator, the build, the renderer) and show its real output. This is the closest thing to red/green the task has, and it is not optional: an unparseable data file or a failed render is a failure the agent must catch, not hand to the human.
+- **List each claim needing human judgment** as its own unticked box, in the brief's own words — is this metric accurate, does this fit the page budget, does this read as intended.
+- **Never tick an attestation box yourself**, and never soften one into something you can self-verify. The human's answer is the verification; anything you could check belongs in the mechanical gate.
+
+If the brief declares no verification mode at all, treat it as `automated` and say so — a missing declaration is a Planning gap worth surfacing, not a licence to skip tests.
 
 ## 3. Handle environment issues (if needed)
 
@@ -72,13 +84,13 @@ For small, single-commit tasks, skip this step and go straight to Step 1.
 
 - Run the adapter's **single-path test command** against the new test file and show the failing examples (trim noise).
 - If tests can't run after fixes, state the exact command and blocking issue.
-- **Pure-presentation changes** have no red to verify (see the Step 2 carve-out). Skip this step and carry the visual-verification checklist (optional screenshot) into the gate at Step 5 instead.
+- **Carve-out work** has no red to verify (see the Step 2 carve-outs). Skip this step and carry the substitute into the gate at Step 5: the visual-verification checklist for pure presentation, or the mechanical-gate output plus attestation checklist for an `attested` task.
 
 ## 5. Mandatory pause (human gate) — not overridable
 
 **Approval token (exact):** `shipit`
 
-- Post the **Test-Only Review Package** (below). For pure-presentation changes, post the **visual-verification checklist** in its place — the gate and the token are identical. On the **first** gate of a task, prepend the commit sequence from Step 0 so the plan and the tests are approved together.
+- Post the **Test-Only Review Package** (below). For carve-out work, post its substitute in place of the tests — the visual-verification checklist, or the attestation checklist with the mechanical gate's output — the gate and the token are identical either way. On the **first** gate of a task, prepend the commit sequence from Step 0 so the plan and the tests are approved together.
 - Follow it with a reflective prompt + structured response options.
 - Use the `AskQuestion` tool in Cursor; fall back to a numbered list in other environments.
 - **Do not edit non-test files until the reviewer selects `shipit`.**
@@ -164,7 +176,7 @@ When pausing for review, present:
 - The test outline, in the adapter's **outline vocabulary**
 - On the first gate only: the Step 0 commit sequence, so the breakdown is approved with the tests
 
-**For pure-presentation changes**, substitute the **visual-verification checklist** below for the red command and test outline. Everything else about the gate (reflective prompt, `shipit`, response options) is unchanged.
+**For carve-out work**, substitute the matching checklist for the red command and test outline — the **visual-verification checklist** below for pure presentation, or for an `attested` task the mechanical gate's output plus its unticked attestation boxes. Everything else about the gate (reflective prompt, `shipit`, response options) is unchanged.
 
 ### Visual-verification checklist
 

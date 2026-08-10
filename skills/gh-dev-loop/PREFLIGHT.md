@@ -12,13 +12,33 @@ This file deliberately hardcodes **no** project identity. Every value in angle b
 
 | Placeholder | Where it comes from |
 | ----------- | ------------------- |
-| `<OWNER/REPO>` | the repo you are working in |
+| `<TRACKING_REPO>` | the repo that owns the issue and the project board |
+| `<DELIVERABLE_REPO>` | the repo the code lands in — **defaults to `<TRACKING_REPO>`**, and differs only when the task says so |
 | `<ASSIGNEE>` | the workflow doc's declared assignee |
 | `<PROJECT_NODE_ID>`, `<STATUS_FIELD_ID>` | the workflow doc's project field table |
 | `<IN_PROGRESS_OPTION_ID>`, `<TODO_OPTION_ID>`, `<DONE_OPTION_ID>` | the same table |
 | `<BRANCH_PREFIX>` | the workflow doc's branch-naming convention |
+| `<REVIEW_BOT>`, `<REVIEW_REQUEST_LOGIN>` | the workflow doc's review-bot identities (see [CLOSEOUT.md](./CLOSEOUT.md)) |
+| `<PROJECT_KEYWORDS>` | the workflow doc's extra manual-smoke detection keywords, if any — **regex fragment form**: each keyword already escaped for `grep -E`, joined with leading `|` so it splices into the CLOSEOUT.md alternation (e.g. `\|Music\.app` or empty string when there are none). Never a bare word list. |
 
 **If a required fact is missing from `docs/project-workflow.md`, stop and ask for it.** Do not guess it, do not carry it over from another project you have seen, and do not fall back to a default. A wrong assignee or a wrong project node ID writes to the wrong board silently.
+
+### When the deliverable lives in another repo
+
+Most tasks keep code and issue in one repo, and then the two placeholders are the same value — read the rest of this file as if only one existed. But some deliverables belong elsewhere by design: a dev-loop adapter, for instance, is authored in the shared skills tree so every project in that language can use it, while its task issue and board stay with the project that needs it.
+
+When they differ, the division is absolute and follows the artifact, not the task:
+
+| Belongs to `<TRACKING_REPO>` | Belongs to `<DELIVERABLE_REPO>` |
+|---|---|
+| the issue: assign, acceptance boxes, close | the working tree and the branch |
+| the project board: Status, item lookups | the pull request: open, review, merge |
+| the parent epic and its cascade | the code, tests, and docs being shipped |
+
+Two consequences worth stating outright, because both fail silently:
+
+- **`Closes #N` does not work across repos.** GitHub only auto-closes an issue in the PR's own repo, so a cross-repo PR links its issue by full URL and close-out closes the issue explicitly. See [CLOSEOUT.md](./CLOSEOUT.md) Steps 11 and 13.
+- **The deliverable repo needs a remote before the task is workable.** A skills tree that has never been pushed cannot host a PR. Confirm `git ls-remote origin` succeeds there during pre-flight; if it does not, stop and say so rather than doing the work locally and discovering it at PR time.
 
 If the repo has no `docs/project-workflow.md` at all, say so and stop — `/gh-sdlc` provisions that file, and running the loop without it is how boards drift out of sync.
 
@@ -32,7 +52,7 @@ When the user asks you to "take the next item" (no explicit issue number), do **
 - Walk the Todo column in board order, skip any blocked task, and choose the first unblocked one.
 - Briefly note which tasks you skipped and why (e.g. "skipped #28 — blocked by #26, #27").
 
-See `docs/project-workflow.md` for the exact `gh api` recipe to read the blocked-by count.
+The `gh api` recipe for the blocked-by count lives in [gh-sdlc/SUBSTRATE.md](../gh-sdlc/SUBSTRATE.md) → *Reading the relationships back*; `docs/project-workflow.md` supplies only the repo it runs against.
 
 **In maintenance mode**, scope the Todo scan to the **active window milestone** (skip issues in other milestones or the `no:milestone` inbox), still skip `blocked_by > 0`, and prioritize `type:bug` ahead of `type:enhancement`/`type:chore`. See [gh-sdlc/MAINTENANCE.md](../gh-sdlc/MAINTENANCE.md) for the window model.
 
@@ -41,7 +61,7 @@ See `docs/project-workflow.md` for the exact `gh api` recipe to read the blocked
 ## Step 1 — Fetch the issue type
 
 ```bash
-gh issue view {N} --repo <OWNER/REPO> --json labels,title | python3 -c "
+gh issue view {N} --repo <TRACKING_REPO> --json labels,title | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
 labels = [l['name'] for l in d['labels']]
@@ -74,27 +94,19 @@ When the repo is in maintenance mode (see [gh-sdlc/MAINTENANCE.md](../gh-sdlc/MA
 
 ```bash
 # 1. Assign the issue
-gh issue edit {N} --add-assignee <ASSIGNEE> --repo <OWNER/REPO>
+gh issue edit {N} --add-assignee <ASSIGNEE> --repo <TRACKING_REPO>
 
-# 2. Set Status → In Progress via GraphQL
-# Read the project node ID, Status field ID, and option IDs from
-# docs/project-workflow.md first — do NOT hardcode them here, they are
-# per-project and live only in that doc.
-gh api graphql -f query='
-  mutation {
-    updateProjectV2ItemFieldValue(input: {
-      projectId: "<PROJECT_NODE_ID>"
-      itemId: "<ITEM_NODE_ID>"
-      fieldId: "<STATUS_FIELD_ID>"
-      value: { singleSelectOptionId: "<IN_PROGRESS_OPTION_ID>" }
-    }) { projectV2Item { id } }
-  }'
+# 2. Set Status → In Progress
+# Run the canonical mutation from gh-sdlc/SUBSTRATE.md (Status field mutation),
+# passing <IN_PROGRESS_OPTION_ID>. The IDs are per-project and live only in
+# docs/project-workflow.md — do NOT hardcode them, and do NOT restate the
+# mutation here, or the two copies drift.
 
-# 3. Create branch
+# 3. Create branch — in <DELIVERABLE_REPO>'s working tree
 git checkout -b <BRANCH_PREFIX>{N}_{task_slug}
 ```
 
-> Branch naming is conventionally `em/<issue#>_<task_slug>` (underscores, lowercase) — for example `em/12_extract_token_resolver` — but the prefix is a project fact; read it from `docs/project-workflow.md`.
+> Branch naming is conventionally `em/<issue#>_<task_slug>` (underscores, lowercase) — for example `em/12_extract_token_resolver` — but the prefix is a project fact; read it from `docs/project-workflow.md`. The issue number in the branch name stays the **tracking** issue's number even when the branch lives in another repo, so the two stay traceable to each other.
 
 ---
 
@@ -102,10 +114,10 @@ git checkout -b <BRANCH_PREFIX>{N}_{task_slug}
 
 A task usually belongs to an epic. When you start a task, make sure its epic reflects that work has begun — otherwise the epic lingers in Todo while its children are underway.
 
-1. Resolve the parent epic: `gh api repos/<OWNER/REPO>/issues/{N} --jq .parent_issue_url`. The trailing number of the returned URL is the epic's issue number. If there is no parent, skip this step.
+1. Resolve the parent epic: `gh api repos/<TRACKING_REPO>/issues/{N} --jq .parent_issue_url`. The trailing number of the returned URL is the epic's issue number. If there is no parent, skip this step.
 2. If the epic's project Status is **not** already In Progress or Done, set it to In Progress (same GraphQL mutation as the task) and assign it to `<ASSIGNEE>`.
 
-See `docs/project-workflow.md` for the exact commands.
+Both mechanics live in [gh-sdlc/SUBSTRATE.md](../gh-sdlc/SUBSTRATE.md) — *Reading the relationships back* for the parent lookup, *Status field mutation* for the Status change. `docs/project-workflow.md` supplies the IDs they take.
 
 **If no issue is provided**, skip housekeeping entirely and go straight to the loop's commit-sequence planning step.
 
