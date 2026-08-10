@@ -45,11 +45,33 @@ Each task body is a **self-contained brief** the executing agent reads instead o
 2. **Old code** — `file:line` reference into existing behavior (refactor), so the agent reads it directly.
 3. **New surface** — exact entry point/signature, namespace or module path, implementation file path, test file path (per the pointer's test-file convention), and a one-sentence responsibility.
 4. **Deliverable repo** — include this line **only when the code lands outside this project's repo**; omit it entirely for ordinary same-repo work. The adapter-authoring task is the standard case, since an adapter belongs in the shared skills tree rather than in one project that happens to need it. Name the repo and state plainly that the PR opens there while this issue and the board stay here, so the executing agent takes the cross-repo path in [PREFLIGHT.md](../gh-dev-loop/PREFLIGHT.md) rather than discovering at PR time that `Closes #N` cannot reach across repos.
-5. **Test plan** — the outline of cases at the granularity the executor's loop expects, plus a **Fixtures / Fakes** note listing the helpers and fake collaborators the tests need. Prefer purpose-built fakes over mocking frameworks.
-6. **Commit plan** — the executor's commit list (usually 1-3), tests+impl together per commit.
-7. **Acceptance** — machine-checkable, and **written with the pointer's own commands**: test file exists, impl exists, *the pointer's test command* green for that path, *the pointer's lint command* clean if the project configures one, draft PR opened with `Closes #<this issue>` (or, cross-repo, carrying the tracking-issue URL).
+5. **Verification** — `automated` or `attested`, stated explicitly on every task (see [below](#verification-automated-or-attested)). It decides the shape of items 6 and 8.
+6. **Test plan** (`automated`) — the outline of cases at the granularity the executor's loop expects, plus a **Fixtures / Fakes** note listing the helpers and fake collaborators the tests need. Prefer purpose-built fakes over mocking frameworks. For an `attested` task, this becomes the **Verification plan**: the mechanical gate to run, and the exact judgment a human has to make.
+7. **Commit plan** — the executor's commit list (usually 1-3), tests+impl together per commit.
+8. **Acceptance** — machine-checkable, and **written with the pointer's own commands**: test file exists, impl exists, *the pointer's test command* green for that path, *the pointer's lint command* clean if the project configures one, draft PR opened with `Closes #<this issue>` (or, cross-repo, carrying the tracking-issue URL). An `attested` task swaps the first three for its mechanical gate plus the attestation checkbox.
 8. **Linked issues** — **Parent** (epic, via `gh sub-issue add`), **Blocked by** (`addBlockedBy`), **Related** (`#N` refs).
-9. **References** — parent epic, the Design ADR/section, the executor guideline sections to load.
+10. **References** — parent epic, the Design ADR/section, the executor guideline sections to load.
+
+### Verification: `automated` or `attested`
+
+Most tasks produce code, and code has a natural failing test. Some tasks do not: migrating content into a data file, writing the README that documents the build commands, tuning a document until it fits a page budget. Those have no red to make green, and pretending otherwise produces a ceremonial test that asserts the fixture it was written from.
+
+So every task declares which it is, and the declaration is load-bearing rather than descriptive — the executor reads it to know what its gate is gating.
+
+| | `automated` | `attested` |
+|---|---|---|
+| **Use when** | the slice has behavior a test can exercise | the deliverable is content, prose, or a rendered artifact whose correctness is a human judgment |
+| **Item 6 carries** | the test outline + fixtures/fakes | the mechanical gate to run + the exact judgment the human makes |
+| **Acceptance opens with** | test exists, impl exists, the pointer's test command green | the mechanical gate passing (schema validate, build succeeds, artifact written) |
+| **Plus** | — | one attestation checkbox per claim a human must confirm, left unticked until they do |
+| **`tdd:red-gate`** | yes | **no** — there is no red gate to mark |
+
+Two rules keep `attested` from becoming an escape hatch:
+
+- **A mechanical gate is still mandatory.** "A human looks at it" is not a verification plan. Name the command that proves the artifact is well-formed — the schema validator, the build, the renderer — and let the human judge only what the command cannot: is this claim true, does this read well, does it fit.
+- **Never write an attestation the agent could have checked.** If a script can answer it, it belongs in the mechanical gate. `attested` covers what is genuinely unverifiable without a human, not what is inconvenient to automate.
+
+The executor's own human gate still fires on an `attested` task — [dev-loop/LOOP.md](../dev-loop/LOOP.md) routes it to the same `shipit` pause with the verification plan in place of the test package. `attested` changes *what* is reviewed, never *whether* there is a review.
 
 **Worked example — standalone Ruby (`/ruby-dev` pointer).** Illustrative only; the shapes below are *this pointer's* conventions, not the template's:
 
@@ -61,6 +83,7 @@ New surface:
   Spec: spec/my_app/orders/builders/total_cents_spec.rb
   Responsibility: sum line items into integer cents for the given currency.
 
+Verification: automated
 Test plan: unit specs only — describe/context/it outline; real fakes over RSpec
   doubles, plain Ruby builders in spec/support/ over FactoryBot.
 Acceptance: spec exists, impl exists, `bundle exec rspec <path>` green,
@@ -79,7 +102,7 @@ A Node project's brief would instead name its own runner, its own test-file conv
 Then publish in dependency order so real issue numbers can be referenced:
 
 1. Create the epics (`gh issue create --label type:epic,phase:<x>,size:<y>`).
-2. For each epic, create sub-tasks (`type:task` + area/size labels; add `tdd:red-gate` to tasks carrying the executor's test-approval gate) and wire them as sub-issues.
+2. For each epic, create sub-tasks (`type:task` + area/size labels; add `tdd:red-gate` to every `automated` task, and to no `attested` one) and wire them as sub-issues.
 3. Wire intra-epic `addBlockedBy` edges immediately after each task is created.
 4. Wire cross-epic `addBlockedBy` edges once all relevant tasks exist.
 5. Add `## Related` `#N` references as a final body-edit pass.

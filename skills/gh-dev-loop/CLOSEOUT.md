@@ -190,10 +190,10 @@ Repeat the loop for each new review round until there are no open threads. Then 
 
 Run this **only when the user asks to merge / complete the work** — never automatically on green. It is the defined close-out lifecycle that keeps GitHub and the project board in sync.
 
-1. **Confirm green.** Re-run the full suite using the adapter's **full-suite test command** slot and confirm 0 failures before merging.
+1. **Confirm green.** Re-run the full suite using the adapter's **full-suite test command** slot and confirm 0 failures before merging. For a task the brief declared `Verification: attested`, re-run the mechanical gate it named instead (the validator, the build, the renderer) — the suite may have nothing to say about a content change, but the artifact must still be well-formed at merge time.
 2. **Confirm no open review threads.** Run the check from Step 12; if any thread is unresolved, finish the review loop before merging.
 3. **Final checkbox sweep.** Tick every remaining *verified* box on the issue and the PR, per the Checkbox Policy in Step 11. Never tick an unverifiable manual-only item — surface it for the user instead.
-4. **Manual-smoke gate (mandatory, blocking).** Scan the PR and issue bodies (deduped) for any unchecked `- [ ]` that reads as manual/unverifiable — regex `smoke|manual|live token|real token|hardware|browser|verified manually`, plus any project-specific keywords declared in `docs/project-workflow.md`, or any unchecked box inside a `Recommended manual smoke steps` collapsible. If none, continue. If one or more exist, this gate is never skippable — even when the user's merge request was terse ("close it") — but **do not prompt yet**: first run the evidence pre-check in 4a.
+4. **Manual-smoke gate (mandatory, blocking).** Scan the PR and issue bodies (deduped) for any unchecked `- [ ]` that reads as manual/unverifiable — regex `smoke|manual|live token|real token|hardware|browser|verified manually|attest`, plus any project-specific keywords declared in `docs/project-workflow.md`, or any unchecked box inside a `Recommended manual smoke steps` collapsible. If none, continue. If one or more exist, this gate is never skippable — even when the user's merge request was terse ("close it") — but **do not prompt yet**: first run the evidence pre-check in 4a.
 
 4a. **Evidence pre-check (run before any prompt).** The user may have already run the smoke test and recorded it in the PR. Confirming that is *your* job at the gate, not something the user should have to point you to.
 
@@ -219,7 +219,7 @@ Run this **only when the user asks to merge / complete the work** — never auto
    { gh pr view {N} --repo <DELIVERABLE_REPO> --json body --jq .body; \
      gh issue view <ISSUE> --repo <TRACKING_REPO> --json body --jq .body; } \
      | grep -E '^[[:space:]]*- \[ \]' \
-     | grep -iE 'smoke|manual|live token|real token|hardware|browser|verified manually<PROJECT_KEYWORDS>' \
+     | grep -iE 'smoke|manual|live token|real token|hardware|browser|verified manually|attest<PROJECT_KEYWORDS>' \
      | sort -u
 
    # Evidence pre-check: fetch the whole body AND the comments fresh, then locate evidence.
