@@ -70,7 +70,7 @@ So every task declares which it is, and the declaration is load-bearing rather t
 
 Two rules keep `attested` from becoming an escape hatch:
 
-- **A mechanical gate is still mandatory.** "A human looks at it" is not a verification plan. Name the command that proves the artifact is well-formed — the schema validator, the build, the renderer — and let the human judge only what the command cannot: is this claim true, does this read well, does it fit.
+- **A mechanical gate is still mandatory.** "A human looks at it" is not a verification plan. Name what proves the artifact is well-formed — usually a command (the schema validator, the build, the renderer), or failing that a **deterministic checklist an agent can settle without judgment** (does this file declare all six slots; does it load all three bundles). Then let the human judge only what the gate cannot: is this claim true, does this read well, does it fit.
 - **Never write an attestation the agent could have checked.** If a script can answer it, it belongs in the mechanical gate. `attested` covers what is genuinely unverifiable without a human, not what is inconvenient to automate.
 
 The executor's own human gate still fires on an `attested` task — [dev-loop/LOOP.md](../dev-loop/LOOP.md) routes it to the same `shipit` pause with the verification plan in place of the test package. `attested` changes *what* is reviewed, never *whether* there is a review.
