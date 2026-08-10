@@ -237,13 +237,16 @@ done
 These are the queries every phase and the implementation loop use to route work — the parent lookup, the blocked check that decides whether a task is workable, and the epic-completion check that drives the close-out cascade:
 
 ```bash
+# These queries always run against <TRACKING_REPO> — the issue and board live
+# there even when the PR lands in a different deliverable repo.
+
 # Parent epic of a task — the trailing number of the returned URL is the epic:
-gh api repos/<OWNER/REPO>/issues/<N> --jq .parent_issue_url
+gh api repos/<TRACKING_REPO>/issues/<N> --jq .parent_issue_url
 
 # Is a task blocked? 0 = unblocked, >0 = skip it when selecting the next item:
-gh api repos/<OWNER/REPO>/issues/<N> --jq .issue_dependencies_summary.blocked_by
+gh api repos/<TRACKING_REPO>/issues/<N> --jq .issue_dependencies_summary.blocked_by
 
 # Is an epic complete? Quick summary, then per-child detail:
-gh api repos/<OWNER/REPO>/issues/<EPIC> --jq .sub_issues_summary
-gh api repos/<OWNER/REPO>/issues/<EPIC>/sub_issues --jq '[.[] | {number, state}]'
+gh api repos/<TRACKING_REPO>/issues/<EPIC> --jq .sub_issues_summary
+gh api repos/<TRACKING_REPO>/issues/<EPIC>/sub_issues --jq '[.[] | {number, state}]'
 ```

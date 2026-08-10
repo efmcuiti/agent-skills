@@ -145,6 +145,8 @@ gh api graphql -f query='
   --jq '.data.repository.pullRequest.reviewThreads.nodes[] | "\(.id)\t\(.isResolved)\t\(.path)\t\(.comments.nodes[0].author.login)"'
 ```
 
+`<DELIVERABLE_OWNER>` and `<DELIVERABLE_NAME>` are the two halves of `<DELIVERABLE_REPO>` split on `/` — for `efmcuiti/agent-skills` they are `efmcuiti` and `agent-skills`. GraphQL's `repository(owner:, name:)` takes them separately; every other recipe in this file keeps the combined form.
+
 **4. Resolve a thread** once its comment is addressed and replied to:
 
 ```bash
@@ -197,7 +199,7 @@ Run this **only when the user asks to merge / complete the work** — never auto
 
 4a. **Evidence pre-check (run before any prompt).** The user may have already run the smoke test and recorded it in the PR. Confirming that is *your* job at the gate, not something the user should have to point you to.
 
-   - **Fetch fresh, fetch whole.** `gh pr view {N} --json body --jq .body` plus `gh pr view {N} --comments`. Never reason from the box-detection grep output or from a body you read earlier in the session — the grep discards surrounding context, and the user may append results days after PR open.
+   - **Fetch fresh, fetch whole.** `gh pr view {N} --repo <DELIVERABLE_REPO> --json body --jq .body` plus `gh pr view {N} --repo <DELIVERABLE_REPO> --comments`. Never reason from the box-detection grep output or from a body you read earlier in the session — the grep discards surrounding context, and the user may append results days after PR open.
    - **Locate evidence:** a heading matching `/(smoke|manual).*(result|evidence|output|run|verified)/i`, fenced transcripts containing the key lines the derived script predicted, or attached screenshots (`<img ... user-attachments ...>` / `![](...)`).
    - **Grade it against the derived collapsible, step by step:** every numbered step/branch has a matching transcript or screenshot; the transcript contains the expected key lines, in the expected order; error and edge branches are covered, not just the happy path; the commands shown match the real flags/subcommands of the code path; no secret leaked in the paste.
    - **Route on the grade:**
@@ -223,11 +225,11 @@ Run this **only when the user asks to merge / complete the work** — never auto
      | sort -u
 
    # Evidence pre-check: fetch the whole body AND the comments fresh, then locate evidence.
-   gh pr view {N} --json body --jq .body > /tmp/pr_body.md
+   gh pr view {N} --repo <DELIVERABLE_REPO> --json body --jq .body > /tmp/pr_body.md
    gh api repos/<DELIVERABLE_REPO>/issues/{N}/comments --jq '.[].body' > /tmp/pr_comments.md
    grep -inE '^#{1,4} .*(smoke|manual).*(result|evidence|output|run|verified)' /tmp/pr_body.md /tmp/pr_comments.md
    grep -cE '<img |!\[' /tmp/pr_body.md /tmp/pr_comments.md   # per file: LINES holding an image ref, not an image count
-   gh pr view {N} --comments   # then read them in context (also surfaces review bodies)
+   gh pr view {N} --repo <DELIVERABLE_REPO> --comments   # then read them in context (also surfaces review bodies)
    ```
 
    Annotating the box after the routing decision — edit the fetched body, then push it back with `gh pr edit {N} --repo <DELIVERABLE_REPO> --body-file` (and `gh issue edit <ISSUE> --repo <TRACKING_REPO> --body-file` when the same box lives on the issue):

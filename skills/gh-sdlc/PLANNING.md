@@ -51,7 +51,7 @@ Each task body is a **self-contained brief** the executing agent reads instead o
 6. **Test plan** (`automated`) — the outline of cases at the granularity the executor's loop expects, plus a **Fixtures / Fakes** note listing the helpers and fake collaborators the tests need. Prefer purpose-built fakes over mocking frameworks. For an `attested` task, this becomes the **Verification plan**: the mechanical gate to run, and the exact judgment a human has to make.
 7. **Commit plan** — the executor's commit list (usually 1-3), tests+impl together per commit.
 8. **Acceptance** — machine-checkable, and **written with the pointer's own commands**: test file exists, impl exists, *the pointer's test command* green for that path, *the pointer's lint command* clean if the project configures one, draft PR opened with `Closes #<this issue>` (or, cross-repo, carrying the tracking-issue URL). An `attested` task swaps the first three for its mechanical gate plus the attestation checkbox.
-8. **Linked issues** — **Parent** (epic, via `gh sub-issue add`), **Blocked by** (`addBlockedBy`), **Related** (`#N` refs).
+9. **Linked issues** — **Parent** (epic, via `gh sub-issue add`), **Blocked by** (`addBlockedBy`), **Related** (`#N` refs).
 10. **References** — parent epic, the Design ADR/section, the executor guideline sections to load.
 
 ### Verification: `automated` or `attested`
@@ -99,7 +99,7 @@ A Node project's brief would instead name its own runner, its own test-file conv
 
 **Pre-publish label check (blocking).** Collect every label the drafted briefs reference — `type:*`, the implementation `phase:*` values Design declared, `size:*`, area labels, `tdd:red-gate` — and confirm each one exists (`gh label list --limit 100`). Create anything missing now. `gh issue create` fails per-issue on an unknown label, so skipping this check does not fail the publish cleanly: it fails it partway through, leaving some epics filed, some not, and a half-wired dependency graph to reconcile by hand.
 
-**Pre-publish deliverable-repo check (blocking).** For every brief that declares a deliverable repo other than this project's, confirm that repo exists and has a working remote (`git ls-remote origin` inside it, or `gh repo view <REPO>`). A brief pointing at a directory that has never been pushed is unworkable — the executor gets all the way to PR-open before it fails. Provision the remote, or hold the brief.
+**Pre-publish deliverable-repo check (blocking).** For every brief that declares a deliverable repo other than this project's, confirm that repo exists and has a working remote (`git ls-remote origin` inside it, or `gh repo view <DELIVERABLE_REPO>`). A brief pointing at a directory that has never been pushed is unworkable — the executor gets all the way to PR-open before it fails. Provision the remote, or hold the brief.
 
 **Pre-publish pointer check (blocking).** Before the first `gh issue create`, re-resolve every slot — the executor's adapter table for the defaults, the repo's `docs/project-workflow.md` for overrides — and confirm that every acceptance command, test path, and file-layout claim across all drafted briefs belongs to **that** resolved set. If any brief names a command neither source owns, fix the brief — do not publish it.
 

@@ -19,7 +19,7 @@ This file deliberately hardcodes **no** project identity. Every value in angle b
 | `<IN_PROGRESS_OPTION_ID>`, `<TODO_OPTION_ID>`, `<DONE_OPTION_ID>` | the same table |
 | `<BRANCH_PREFIX>` | the workflow doc's branch-naming convention |
 | `<REVIEW_BOT>`, `<REVIEW_REQUEST_LOGIN>` | the workflow doc's review-bot identities (see [CLOSEOUT.md](./CLOSEOUT.md)) |
-| `<PROJECT_KEYWORDS>` | the workflow doc's extra manual-smoke detection keywords, if any |
+| `<PROJECT_KEYWORDS>` | the workflow doc's extra manual-smoke detection keywords, if any — **regex fragment form**: each keyword already escaped for `grep -E`, joined with leading `|` so it splices into the CLOSEOUT.md alternation (e.g. `\|Music\.app` or empty string when there are none). Never a bare word list. |
 
 **If a required fact is missing from `docs/project-workflow.md`, stop and ask for it.** Do not guess it, do not carry it over from another project you have seen, and do not fall back to a default. A wrong assignee or a wrong project node ID writes to the wrong board silently.
 
