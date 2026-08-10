@@ -42,9 +42,22 @@ the retry semantics belong in this ADR or their own — worth splitting?
 3. Something else — I have different feedback
 ```
 
+## A token for an already-passed gate is a no-op
+
+Users offer tokens from memory, and memory lags the repo — `/gh-sdlc discovery-approved` arrives at a project whose Discovery epic closed weeks ago. **A token only authorizes the gate it belongs to.** It is never a general grant of permission, and it never authorizes wherever the run happens to be standing.
+
+When the token names a gate the repo has already passed:
+
+1. **Do not act on it.** Creating the Discovery issues again, or treating it as license to begin the current phase, is worse than doing nothing.
+2. **Say what the repo actually shows** — the phase you detected and the signal that determined it (a merged findings PR, existing implementation epics).
+3. **Name the token the current phase needs**, and gate on that one normally.
+
+The reverse case is a hard stop, not a correction: a token for a gate the repo has **not** yet reached (`plan-approved` before Design has merged) is refused outright. Say which gate is outstanding and run that gate instead. A later token never satisfies an earlier one.
+
 ## Rules
 
 - **No advance without the exact token.** Do not infer approval from "looks good" or a 👍 — require the literal phase token via the gate.
+- **Tokens are gate-scoped, not session-scoped.** A token for a passed gate is a no-op; a token for an unreached gate is refused. Detect the phase, then ask for that phase's token.
 - **No pre-emptive work.** Do not create the next phase's epics, ADRs, or issues before its predecessor's gate has passed. No `gh issue create` until `discovery-approved` (Discovery) or `plan-approved` (Planning).
 - **No filing-and-working in one breath.** After `discovery-approved` files the question issues, the run **ends**. Resolving them is a separate user-initiated `discovery run`.
 - **One hard-stop minimum per phase.** A phase may pause for smaller confirmations, but it must always terminate at its token gate.

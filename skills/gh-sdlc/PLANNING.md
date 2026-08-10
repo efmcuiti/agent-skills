@@ -97,6 +97,8 @@ A Node project's brief would instead name its own runner, its own test-file conv
 
 ## 4. Publish (only after `plan-approved`)
 
+**Pre-publish label check (blocking).** Collect every label the drafted briefs reference — `type:*`, the implementation `phase:*` values Design declared, `size:*`, area labels, `tdd:red-gate` — and confirm each one exists (`gh label list --limit 100`). Create anything missing now. `gh issue create` fails per-issue on an unknown label, so skipping this check does not fail the publish cleanly: it fails it partway through, leaving some epics filed, some not, and a half-wired dependency graph to reconcile by hand.
+
 **Pre-publish deliverable-repo check (blocking).** For every brief that declares a deliverable repo other than this project's, confirm that repo exists and has a working remote (`git ls-remote origin` inside it, or `gh repo view <REPO>`). A brief pointing at a directory that has never been pushed is unworkable — the executor gets all the way to PR-open before it fails. Provision the remote, or hold the brief.
 
 **Pre-publish pointer check (blocking).** Before the first `gh issue create`, re-resolve every slot — the executor's adapter table for the defaults, the repo's `docs/project-workflow.md` for overrides — and confirm that every acceptance command, test path, and file-layout claim across all drafted briefs belongs to **that** resolved set. If any brief names a command neither source owns, fix the brief — do not publish it.

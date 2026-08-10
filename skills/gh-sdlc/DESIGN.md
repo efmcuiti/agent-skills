@@ -54,6 +54,14 @@ Produce a **generic work-breakdown skeleton** — the epic/task outline Planning
 
 If the design itself is substantial, create one **Design epic** (`type:epic`, `phase:design`) with one sub-task per ADR/diagram so the work is visible on the board. For lightweight designs, a single PR is enough — don't manufacture tracking overhead.
 
-## 5. Reach the hard-stop
+## 5. Reconcile the docs the decisions just invalidated
+
+A locked decision usually contradicts something already written down. The README describes a directory the design just eliminated; a workflow doc names a command an ADR just replaced; a glossary still uses the term `CONTEXT.md` just sharpened. Left alone, these become the most trusted wrong documentation in the repo — a reader believes the README over an ADR they have never opened.
+
+So before opening the PR, **re-read the docs the decisions touch** and fix every contradiction in the same PR: the README, any doc it links, `docs/project-workflow.md`, and prior ADRs a new one supersedes (mark those superseded rather than editing history). The design PR is the atomic unit — a decision and the docs it invalidates land together, or the repo ships a self-contradiction whose resolution depends on which file the next reader opens first.
+
+Reconciliation is not automated review's job. If a bot finds one of these, the step was skipped.
+
+## 6. Reach the hard-stop
 
 Open a PR carrying the ADRs, `CONTEXT.md` updates, the locked diagram artifact(s), and the WBS skeleton (single-line commit). The branch is `em/<epic#>_design_<slug>` **when step 4 created a Design epic**, and `em/design_<slug>` when it did not — a lightweight design has no epic number to borrow, and inventing one to satisfy the pattern is worse than dropping it. Then run the **Design gate** in [GATES.md](./GATES.md): present the decisions + diagrams, ask for the `design-approved` token, and **do not start Planning** until it's given and the PR is merged. The merged PR is the durable record.

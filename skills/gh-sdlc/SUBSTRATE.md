@@ -215,6 +215,23 @@ gh api graphql -f query='
   }' -F issue="$ISSUE_ID" -F blocker="$BLOCKER_ID"
 ```
 
+### Probe one, then loop
+
+**Never run a bulk mutation loop without proving the mutation first.** Wire one edge, confirm the response, and only then iterate the rest. GitHub's schema moves under these recipes — `addBlockedBy`'s input field was renamed out from under this file — and a loop over 22 pairs fails 22 times just as readily as once, except that now you cannot tell which failures were the recipe and which were the data.
+
+This applies to every bulk pass: dependency edges, sub-issue wiring, label backfills, Status sweeps.
+
+**Iterating pairs safely.** Read them into named variables; do not rely on word-splitting:
+
+```bash
+# Correct — each pair lands in $child and $blocker regardless of shell.
+printf '%s\n' "24 21" "25 21" "26 24" | while read -r child blocker; do
+  echo "wiring $child blocked by $blocker"
+done
+```
+
+`set -- $pair` looks equivalent and is not: **zsh does not word-split unquoted parameter expansions**, so `$pair` arrives as the single string `"24 21"` and the second value silently goes missing. The failure surfaces as an unrelated complaint about an invalid argument, several layers away from the real cause.
+
 ### Reading the relationships back
 
 These are the queries every phase and the implementation loop use to route work — the parent lookup, the blocked check that decides whether a task is workable, and the epic-completion check that drives the close-out cascade:
