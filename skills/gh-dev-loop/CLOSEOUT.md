@@ -105,7 +105,56 @@ Tick boxes incrementally, but only when genuinely verified.
 
 Automated reviews land asynchronously (usually a minute or two after the PR opens) and recur every time you push. Every PR goes through several review rounds, so treat responding to them as a first-class part of the lifecycle — not an afterthought you wait to be told about.
 
-See `docs/project-workflow.md` → **PR review response** for the project's `<REVIEW_BOT>` identity and the exact `gh`/GraphQL recipes (listing unresolved comments, replying, resolving threads, re-requesting review). Use those recipes verbatim rather than re-deriving the API filters each time. If the workflow doc names no review bot, ask before assuming the project has one.
+The recipes below are the mechanics; `docs/project-workflow.md` supplies only the identities — `<REVIEW_BOT>` (the login that authors inline comments) and `<REVIEW_REQUEST_LOGIN>` (the login you re-request, which for bots usually differs, e.g. `Copilot` vs `copilot-pull-request-reviewer[bot]`). If the workflow doc names no review bot, ask before assuming the project has one.
+
+**1. List open (unaddressed) inline comments** — top-level only, oldest first; replies carry a non-null `in_reply_to_id` and are filtered out:
+
+```bash
+gh api 'repos/<OWNER/REPO>/pulls/{N}/comments?sort=created&direction=asc&per_page=100' \
+  --jq '.[] | select(.in_reply_to_id==null) | "id=\(.id)\t\(.path):\(.line // .original_line)\t\(.user.login)\n\(.body)\n"'
+
+# Review summary bodies (the "reviewed N changed files" verdicts):
+gh api repos/<OWNER/REPO>/pulls/{N}/reviews \
+  --jq '.[] | select(.user.login | test("<REVIEW_BOT>"; "i")) | "\(.submitted_at)\t\(.state)\n\(.body)\n"'
+```
+
+**2. Reply to a comment** — only after the fix is committed and pushed, citing the SHA:
+
+```bash
+gh api repos/<OWNER/REPO>/pulls/{N}/comments/<COMMENT_ID>/replies \
+  -f body="Good catch — fixed in <SHA>. <one-line explanation>."
+```
+
+**3. Fetch review-thread IDs + resolution state** (REST comments carry no thread ID; this needs GraphQL):
+
+```bash
+gh api graphql -f query='
+  query($owner: String!, $name: String!, $pr: Int!) {
+    repository(owner: $owner, name: $name) {
+      pullRequest(number: $pr) {
+        reviewThreads(first: 50) {
+          nodes { id isResolved path comments(first: 1) { nodes { author { login } body } } }
+        }
+      }
+    }
+  }' -f owner=<OWNER> -f name=<REPO> -F pr={N} \
+  --jq '.data.repository.pullRequest.reviewThreads.nodes[] | "\(.id)\t\(.isResolved)\t\(.path)\t\(.comments.nodes[0].author.login)"'
+```
+
+**4. Resolve a thread** once its comment is addressed and replied to:
+
+```bash
+gh api graphql -f query='mutation { resolveReviewThread(input: { threadId: "<PRRT_...>" }) { thread { isResolved path } } }'
+```
+
+**5. Re-request review** — LAST, only once every comment in the round is fixed, pushed, replied to, and resolved:
+
+```bash
+gh api repos/<OWNER/REPO>/pulls/{N}/requested_reviewers \
+  -X POST -f "reviewers[]=<REVIEW_REQUEST_LOGIN>"
+```
+
+**Close-out gate:** before the Step 13 merge, re-run recipe 3 — if any thread shows `isResolved=false`, the review loop is not done.
 
 **When to run this step:**
 
@@ -158,7 +207,28 @@ Run this **only when the user asks to merge / complete the work** — never auto
    - **Skip & close (waived)** — leave the box unchecked, annotate it inline `(waived by @<ASSIGNEE> at close — not run)` on the PR (and the issue if the box is there), then proceed.
    - **Something else** — elaborate, then act.
 
-   See `docs/project-workflow.md` → "Manual-smoke close-out gate" for any project-specific detection and evidence-check recipes.
+   **Recipes.** `docs/project-workflow.md` contributes only the project's extra detection keywords; the mechanics are here.
+
+   ```bash
+   # Detect an unchecked manual/unverifiable box across PR + issue bodies (deduped).
+   # Non-empty output => run the gate before merging.
+   { gh pr view {N} --json body --jq .body; gh issue view <ISSUE> --json body --jq .body; } \
+     | grep -E '^[[:space:]]*- \[ \]' \
+     | grep -iE 'smoke|manual|live token|real token|hardware|browser|verified manually<PROJECT_KEYWORDS>' \
+     | sort -u
+
+   # Evidence pre-check: fetch the whole body AND the comments fresh, then locate evidence.
+   gh pr view {N} --json body --jq .body > /tmp/pr_body.md
+   gh api repos/<OWNER/REPO>/issues/{N}/comments --jq '.[].body' > /tmp/pr_comments.md
+   grep -inE '^#{1,4} .*(smoke|manual).*(result|evidence|output|run|verified)' /tmp/pr_body.md /tmp/pr_comments.md
+   grep -cE '<img |!\[' /tmp/pr_body.md /tmp/pr_comments.md   # per file: LINES holding an image ref, not an image count
+   gh pr view {N} --comments   # then read them in context (also surfaces review bodies)
+   ```
+
+   Annotating the box after the routing decision — edit the fetched body, then push it back with `gh pr edit {N} --body-file` (and `gh issue edit <ISSUE> --body-file` when the same box lives on the issue):
+
+   - **waived** → append ` (waived by @<ASSIGNEE> at close — not run)` to the matched `- [ ]` line, left unticked.
+   - **evidence-attested** → change the line to `- [x] ... — verified manually by @<ASSIGNEE> (results in <PR body | comment <id>>)`, naming the location the pre-check actually found.
 
 5. **Merge.** Squash-merge and delete the branch:
 
@@ -166,7 +236,7 @@ Run this **only when the user asks to merge / complete the work** — never auto
    gh pr merge {N} --repo <OWNER/REPO> --squash --delete-branch
    ```
 
-6. **Set the task to Done.** Run the Status → Done GraphQL mutation (`<DONE_OPTION_ID>` from `docs/project-workflow.md`). Closing an issue does **not** auto-move its project item, so this explicit step is required.
+6. **Set the task to Done.** Run the canonical Status mutation from [gh-sdlc/SUBSTRATE.md](../gh-sdlc/SUBSTRATE.md) with `<DONE_OPTION_ID>`. Closing an issue does **not** auto-move its project item, so this explicit step is required.
 7. **Verify the issue closed.** `Closes #N` in the PR body should have closed it on merge; if not, close it explicitly (`gh issue close {N}`).
 8. **Sync local main.** `git checkout main && git pull --ff-only`.
 9. **Epic-finish cascade.** Check whether this was the epic's last open task:
@@ -174,4 +244,4 @@ Run this **only when the user asks to merge / complete the work** — never auto
    - If **every** child is now `closed`, tick the epic's acceptance boxes, set the epic Status to Done, assign it to `<ASSIGNEE>` if unassigned, and close it.
    - Otherwise leave the epic In Progress.
 
-See `docs/project-workflow.md` for the exact `gh`/GraphQL recipes used in steps 5, 6, and 9.
+The mechanics for steps 6 and 9 live in [gh-sdlc/SUBSTRATE.md](../gh-sdlc/SUBSTRATE.md) — *Status field mutation* and *Reading the relationships back*. `docs/project-workflow.md` supplies the IDs and repo they take, nothing more.

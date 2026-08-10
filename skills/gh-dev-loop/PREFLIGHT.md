@@ -32,7 +32,7 @@ When the user asks you to "take the next item" (no explicit issue number), do **
 - Walk the Todo column in board order, skip any blocked task, and choose the first unblocked one.
 - Briefly note which tasks you skipped and why (e.g. "skipped #28 — blocked by #26, #27").
 
-See `docs/project-workflow.md` for the exact `gh api` recipe to read the blocked-by count.
+The `gh api` recipe for the blocked-by count lives in [gh-sdlc/SUBSTRATE.md](../gh-sdlc/SUBSTRATE.md) → *Reading the relationships back*; `docs/project-workflow.md` supplies only the repo it runs against.
 
 **In maintenance mode**, scope the Todo scan to the **active window milestone** (skip issues in other milestones or the `no:milestone` inbox), still skip `blocked_by > 0`, and prioritize `type:bug` ahead of `type:enhancement`/`type:chore`. See [gh-sdlc/MAINTENANCE.md](../gh-sdlc/MAINTENANCE.md) for the window model.
 
@@ -76,19 +76,11 @@ When the repo is in maintenance mode (see [gh-sdlc/MAINTENANCE.md](../gh-sdlc/MA
 # 1. Assign the issue
 gh issue edit {N} --add-assignee <ASSIGNEE> --repo <OWNER/REPO>
 
-# 2. Set Status → In Progress via GraphQL
-# Read the project node ID, Status field ID, and option IDs from
-# docs/project-workflow.md first — do NOT hardcode them here, they are
-# per-project and live only in that doc.
-gh api graphql -f query='
-  mutation {
-    updateProjectV2ItemFieldValue(input: {
-      projectId: "<PROJECT_NODE_ID>"
-      itemId: "<ITEM_NODE_ID>"
-      fieldId: "<STATUS_FIELD_ID>"
-      value: { singleSelectOptionId: "<IN_PROGRESS_OPTION_ID>" }
-    }) { projectV2Item { id } }
-  }'
+# 2. Set Status → In Progress
+# Run the canonical mutation from gh-sdlc/SUBSTRATE.md (Status field mutation),
+# passing <IN_PROGRESS_OPTION_ID>. The IDs are per-project and live only in
+# docs/project-workflow.md — do NOT hardcode them, and do NOT restate the
+# mutation here, or the two copies drift.
 
 # 3. Create branch
 git checkout -b <BRANCH_PREFIX>{N}_{task_slug}
@@ -105,7 +97,7 @@ A task usually belongs to an epic. When you start a task, make sure its epic ref
 1. Resolve the parent epic: `gh api repos/<OWNER/REPO>/issues/{N} --jq .parent_issue_url`. The trailing number of the returned URL is the epic's issue number. If there is no parent, skip this step.
 2. If the epic's project Status is **not** already In Progress or Done, set it to In Progress (same GraphQL mutation as the task) and assign it to `<ASSIGNEE>`.
 
-See `docs/project-workflow.md` for the exact commands.
+Both mechanics live in [gh-sdlc/SUBSTRATE.md](../gh-sdlc/SUBSTRATE.md) — *Reading the relationships back* for the parent lookup, *Status field mutation* for the Status change. `docs/project-workflow.md` supplies the IDs they take.
 
 **If no issue is provided**, skip housekeeping entirely and go straight to the loop's commit-sequence planning step.
 
