@@ -174,6 +174,6 @@ ISSUE_ID=$(gh issue view <ISSUE> --json id -q .id)
 BLOCKER_ID=$(gh issue view <BLOCKER> --json id -q .id)
 gh api graphql -f query='
   mutation($issue: ID!, $blocker: ID!) {
-    addBlockedBy(input: { issueId: $issue, blockedByIssueId: $blocker }) { issue { number } }
+    addBlockedBy(input: { issueId: $issue, blockingIssueId: $blocker }) { issue { number } }
   }' -F issue="$ISSUE_ID" -F blocker="$BLOCKER_ID"
 ```
