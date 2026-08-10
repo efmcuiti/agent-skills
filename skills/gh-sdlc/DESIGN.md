@@ -54,4 +54,4 @@ If the design itself is substantial, create one **Design epic** (`type:epic`, `p
 
 ## 5. Reach the hard-stop
 
-Open a PR carrying the ADRs, `CONTEXT.md` updates, the locked diagram artifact(s), and the WBS skeleton (single-line commit, branch `em/<epic#>_design_<slug>`). Then run the **Design gate** in [GATES.md](./GATES.md): present the decisions + diagrams, ask for the `design-approved` token, and **do not start Planning** until it's given and the PR is merged. The merged PR is the durable record.
+Open a PR carrying the ADRs, `CONTEXT.md` updates, the locked diagram artifact(s), and the WBS skeleton (single-line commit). The branch is `em/<epic#>_design_<slug>` **when step 4 created a Design epic**, and `em/design_<slug>` when it did not — a lightweight design has no epic number to borrow, and inventing one to satisfy the pattern is worse than dropping it. Then run the **Design gate** in [GATES.md](./GATES.md): present the decisions + diagrams, ask for the `design-approved` token, and **do not start Planning** until it's given and the PR is merged. The merged PR is the durable record.

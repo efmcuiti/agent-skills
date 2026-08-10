@@ -100,7 +100,7 @@ gh api graphql -f query='
 
 ### Ensure a view for a phase (idempotent)
 
-Design and Planning call this on entry; it no-ops when a view with that name already exists. Note that `createProjectV2View` accepts **only** `projectId`, `name`, `layout`, and `configuration` — there is **no `filter` input on create**, so the filter is applied by a follow-up `updateProjectV2View`.
+[SKILL.md](./SKILL.md#on-entry-every-invocation)'s *On entry* calls this once for the detected phase — one call site rather than one per phase file, which is how the Design view came to be missing on a project that had already reached Planning. It no-ops when a view with that name already exists. Note that `createProjectV2View` accepts **only** `projectId`, `name`, `layout`, and `configuration` — there is **no `filter` input on create**, so the filter is applied by a follow-up `updateProjectV2View`.
 
 ```bash
 ensure_phase_view() {  # $1 = view name, $2 = board filter

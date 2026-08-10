@@ -47,7 +47,8 @@ Never bulk-load all reference files up front. Load one phase file at a time. If 
 2. **Resolve the implementation-loop pointer** from `docs/project-workflow.md` (see [below](#implementation-loop-pointer)). Every later reference to "the implementation loop" means that skill.
 3. **Detect the current phase** from repo state (table below), or honor an explicit `/gh-sdlc <phase>` argument. A `/gh-sdlc maintenance <verb>` argument routes straight to Maintenance mode regardless of repo state; a `discovery run`/`discovery consolidate` verb routes to that Discovery stage.
 4. **Confirm greenfield vs refactor** if it is not already obvious — it changes the Discovery shape.
-5. **Load only that phase's reference file** (or [MAINTENANCE.md](./MAINTENANCE.md) for a maintenance verb), post a Loaded-Files ACK, and run it. Load [GATES.md](./GATES.md) when you reach the phase boundary.
+5. **Ensure the detected phase's board view** by running `ensure_phase_view` from [SUBSTRATE.md](./SUBSTRATE.md#project-views) with that phase's name and filter. It is idempotent, it is guarded (a view failure prints a manual-fallback note and never fails the run), and it belongs here rather than in each phase file so no phase can forget it. Never rename or delete a view a human named themselves.
+6. **Load only that phase's reference file** (or [MAINTENANCE.md](./MAINTENANCE.md) for a maintenance verb), post a Loaded-Files ACK, and run it. Load [GATES.md](./GATES.md) when you reach the phase boundary.
 
 ### Phase detection
 
