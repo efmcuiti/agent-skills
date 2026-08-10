@@ -39,12 +39,10 @@ gh label create "type:bug"         --color d73a4a --description "Defect against 
 gh label create "type:enhancement" --color a2eeef --description "Small improvement / feature ask" || true
 gh label create "type:chore"       --color cfd3d7 --description "Deps, CI, docs, no-behavior-change refactor" || true
 
-# Phase (drives board grouping; Discovery/Design added on top of the proven extraction/cleanup set)
+# Phase — only the two the lifecycle itself owns. The implementation phases are
+# named by Design (see below), because their vocabulary depends on the project.
 gh label create "phase:discovery"  --color ededed || true
 gh label create "phase:design"     --color ededed || true
-gh label create "phase:foundation" --color ededed || true
-gh label create "phase:extraction" --color ededed || true
-gh label create "phase:cleanup"    --color ededed || true
 
 # Size
 gh label create "size:s" --color fef2c0 || true
@@ -56,6 +54,8 @@ gh label create "tdd:red-gate" --color e99695 --description "Has at least one te
 ```
 
 `pod:*` / area labels are project-specific — create them when the Design phase names the areas, not here.
+
+**Implementation `phase:*` labels are deferred to Design for the same reason.** The original set (`foundation` / `extraction` / `cleanup`) came from a refactor, where "extraction" means pulling behavior out of a monolith; on a greenfield project it means nothing, and reaching for it produces labels a reader has to reinterpret. Design names the implementation phases when it names the areas, defaulting to **`foundation` / `build` / `hardening`** when the project has no better vocabulary of its own, and a refactor is free to keep `extraction` / `cleanup` because there the words are accurate. Whatever Design picks gets created then and recorded in `docs/project-workflow.md`, which is what the Implementation board view filters on.
 
 ## Project + custom fields
 
@@ -69,12 +69,12 @@ fi
 gh project link "$PROJECT_NUMBER" --owner @me --repo <OWNER>/<REPO> || true
 ```
 
-The built-in **Status** field (`Todo` / `In Progress` / `Done`) is the only load-bearing field — labels carry pod/size/phase/type, so **do not recreate them as custom fields** (they drift out of sync with labels). Add an optional `Phase` single-select only if the user wants board swimlanes:
+The built-in **Status** field (`Todo` / `In Progress` / `Done`) is the only load-bearing field — labels carry pod/size/phase/type, so **do not recreate them as custom fields** (they drift out of sync with labels). Add an optional `Phase` single-select only if the user wants board swimlanes, and build its options from the phases this project actually declared rather than a fixed list:
 
 ```bash
 gh project field-create "$PROJECT_NUMBER" --owner @me --name "Phase" \
   --data-type SINGLE_SELECT \
-  --single-select-options "discovery,design,foundation,extraction,cleanup" || true
+  --single-select-options "discovery,design,<DECLARED_IMPLEMENTATION_PHASES>" || true
 ```
 
 ## Project views
@@ -138,7 +138,7 @@ ensure_phase_view() {  # $1 = view name, $2 = board filter
 |---|---|---|
 | Discovery | `Discovery` | `label:"phase:discovery"` |
 | Design | `Design` | `label:"phase:design"` |
-| Planning / Implementation | `Implementation` | `label:"phase:foundation","phase:extraction","phase:cleanup"` |
+| Planning / Implementation | `Implementation` | `label:` the implementation phases Design declared — e.g. `label:"phase:foundation","phase:build","phase:hardening"` |
 | Maintenance | current window `vX.Y` | `milestone:"vX.Y"` (see [MAINTENANCE.md](./MAINTENANCE.md)) |
 
 Record the view names and filters in `docs/project-workflow.md` so later runs read them instead of guessing — and so a human who renamed a view in the UI stays the source of truth. **Never rename or delete a view the user renamed themselves**; if the expected name is absent but a same-filter view exists, report it and leave it alone.

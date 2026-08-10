@@ -48,6 +48,8 @@ If the Miro MCP is unavailable, or the project is too small to justify a board, 
 
 Produce a **generic work-breakdown skeleton** — the epic/task outline Planning will turn into real issues. This is prose in the design artifact, not `gh issue create` calls. For each prospective epic note its area, the tasks beneath it, rough size, and the cross-epic dependencies the diagrams revealed. This is the bridge into Planning; keep it coarse.
 
+**Name the implementation phases here too.** [SUBSTRATE.md](./SUBSTRATE.md#label-taxonomy) deliberately bootstraps only `phase:discovery` and `phase:design`, because the implementation phases describe *this* project's arc: a refactor moves through `extraction` and `cleanup`, while a greenfield build has nothing to extract. Pick the vocabulary that reads honestly for the work in front of you, defaulting to **`foundation` / `build` / `hardening`** when nothing better suggests itself, then create those labels and record them in `docs/project-workflow.md` — the Implementation board view filters on them, and Planning labels every epic and task with them.
+
 ## 4. Track the design work (optional epic)
 
 If the design itself is substantial, create one **Design epic** (`type:epic`, `phase:design`) with one sub-task per ADR/diagram so the work is visible on the board. For lightweight designs, a single PR is enough — don't manufacture tracking overhead.
