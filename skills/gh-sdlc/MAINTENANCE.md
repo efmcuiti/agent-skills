@@ -76,9 +76,9 @@ While you are here, confirm `docs/project-workflow.md` declares an **Implementat
 
 ### `maintenance create <bug|enhancement|chore> <context>`
 
-**Defaults to plan mode and delegates to `/grill-me`.** No `gh issue create` until the user approves the drafted brief.
+**Defaults to plan mode and delegates to `grilling`.** No `gh issue create` until the user approves the drafted brief.
 
-1. **Clarify + triage (plan mode).** Run `/grill-me` on `<context>` — interview one question at a time, exploring the codebase instead of asking whenever a question is answerable there. Resolve: repro steps (bug) or desired behavior (enhancement/chore), acceptance criteria, size estimate, and the **triage route** (directly executable vs needs-design).
+1. **Clarify + triage (plan mode).** Call the Skill tool with `grilling` on `<context>` — interview one question at a time, exploring the codebase instead of asking whenever a question is answerable there. Resolve: repro steps (bug) or desired behavior (enhancement/chore), acceptance criteria, size estimate, and the **triage route** (directly executable vs needs-design).
 2. **Draft the issue brief.** A self-contained body (Context, repro/desired behavior, Acceptance, size). For a needs-design ask, the brief is the seed for the scoped `/gh-sdlc` Discovery, not a task.
 3. **Approval gate.** Present the drafted brief + proposed labels + milestone-or-inbox decision, and ask the user to approve before creating. This is `maintenance create`'s hard-stop — nothing is filed without it.
 4. **Create + place.** On approval:

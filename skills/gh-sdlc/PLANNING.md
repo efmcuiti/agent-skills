@@ -10,7 +10,7 @@ Goal of the phase: convert the Design WBS skeleton into the proven GitHub-native
 
 ## 1. Draft the WBS as a numbered proposal (no issues yet)
 
-Like `to-issues` step 4: present the breakdown as a numbered list and iterate to approval **before** creating anything. For each epic and task show: title, type, size, parent, blocked-by, and a one-line scope.
+Present the breakdown as a numbered list and iterate to approval **before** creating anything. For each epic and task show: title, type, size, parent, blocked-by, and a one-line scope.
 
 **Directive — smallest, atomic chunks of work.** This is the governing rule of the breakdown, inherited from the implementation loop's atomicity (see [SKILL.md](./SKILL.md)). Break work into **tracer-bullet vertical slices** — thin end-to-end paths over horizontal layers — and always prefer many small tasks over few large ones. A task is correctly sized when it is:
 

@@ -13,7 +13,7 @@ It moves **any project, in any language** through **Discovery → Design → Pla
 
 Once a project has shipped its v1, it also serves as the **maintenance** entry point: `/gh-sdlc maintenance <setup|create|close-window>` (see [MAINTENANCE.md](./MAINTENANCE.md)).
 
-It **delegates, never duplicates**: `grill-me` for question elicitation, `grill-with-docs` for ADRs + `CONTEXT.md`, `to-issues`/`to-prd` for breakdown vocabulary, and the project's **implementation loop** (`ruby-dev` for standalone Ruby) for the per-task execution loop.
+It **delegates, never duplicates**: `grilling` for question elicitation, `domain-modeling` for ADRs + `CONTEXT.md`, and the project's **implementation loop** (`ruby-dev` for standalone Ruby, `node-dev` for Node) for the per-task execution loop. Both delegates are **model-invoked** skills, called by name via the Skill tool — this skill never invokes another user-invoked skill, and never reaches into another skill's files by path.
 
 ---
 
@@ -172,7 +172,7 @@ Once a project has shipped, `/gh-sdlc` doubles as its maintenance router. Unlike
 | Verb | Does |
 |---|---|
 | `maintenance setup` | Idempotently put a shipped repo into maintenance mode: ensure the taxonomy labels, open the first/next `vX.Y` window milestone, and record a Maintenance pointer in `docs/project-workflow.md`. |
-| `maintenance create <bug\|enhancement\|chore> <context>` | **Defaults to plan mode + `/grill-me`** to clarify and triage, drafts the issue brief, and only files it on approval — then routes it per the triage gate. |
+| `maintenance create <bug\|enhancement\|chore> <context>` | **Defaults to plan mode + `grilling`** to clarify and triage, drafts the issue brief, and only files it on approval — then routes it per the triage gate. |
 | `maintenance close-window` | Close the current milestone, roll open survivors forward to the next window, open the next. |
 
 **Scoped maintenance features.** When `maintenance create`'s triage gate marks an ask as needs-design, `/gh-sdlc` runs Discovery → Design → Planning **scoped to that single feature**, not the whole project. The substrate is already bootstrapped (`docs/project-workflow.md` exists), so it skips [SUBSTRATE.md](./SUBSTRATE.md) and goes straight to the relevant phase; the resulting epic + tasks all carry the active window milestone.

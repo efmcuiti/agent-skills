@@ -39,15 +39,15 @@ flowchart TD
 
 Invoked as `/gh-sdlc discovery`. **Produces issues, not answers.**
 
-## 1. Elicit the open questions (delegate to `grill-me`)
+## 1. Elicit the open questions (delegate to `grilling`)
 
-Run `grill-me` against the specs: interview the user relentlessly, one question at a time, walking the decision tree and resolving dependencies. **If a question can be answered by exploring the codebase, explore instead of asking.**
+Call the Skill tool with `grilling` against the specs: interview the user relentlessly, one question at a time, walking the decision tree and resolving dependencies. **If a question can be answered by exploring the codebase, explore instead of asking.**
 
 Capture every unresolved item as a candidate question. Do not start creating issues yet — first classify.
 
 ## 2. Classify each question: HITL vs AFK
 
-Reuse the `to-issues` HITL/AFK vocabulary:
+Classify each candidate as HITL or AFK:
 
 - **HITL — business question** (`type:research`): only a human can answer. Pricing rules, compliance constraints, which workflow the business actually wants, scope calls, "do we even need X". The agent **cannot** resolve these by reading code; it drafts the question and waits on the user.
 - **AFK — tech spike** (`type:spike`): the agent can resolve it by investigating. Time-boxed code reading, dependency probes, "does the current `Order` model already expose Y", "how does the legacy god-class handle Z", spike a throwaway proof. Prefer AFK wherever possible.
@@ -56,12 +56,12 @@ Tag each candidate HITL or AFK before filing. The classification is load-bearing
 
 ## 3. Shape by greenfield vs refactor
 
-- **Greenfield:** weight toward **business questions** and module sketching. Borrow `to-prd`'s deep-module discipline — sketch the major modules you'll need and surface their unknowns as research issues. The dominant risk is "are we building the right thing".
+- **Greenfield:** weight toward **business questions** and module sketching. Sketch the major modules you'll need and surface their unknowns as research issues. The dominant risk is "are we building the right thing".
 - **Refactor:** weight toward **code-reading spikes**. The dominant risk is "what does the existing code actually do". File spikes that pin down current behavior of the god-classes/areas to be changed (e.g. `<path/to/legacy_module>:NN-MM` — what are the real inputs/outputs/edge cases), so Design isn't built on guesses.
 
 ## 4. Present the question set as a numbered proposal — hard-stop
 
-Like `to-issues` step 4 and [PLANNING.md](./PLANNING.md) step 1: present the whole question set as a **numbered proposal and iterate to approval before creating anything.** For each candidate show: number, proposed title, `type:research` (HITL) or `type:spike` (AFK), blocked-by edges, and a one-line statement of what decision it unblocks.
+Like [PLANNING.md](./PLANNING.md) step 1: present the whole question set as a **numbered proposal and iterate to approval before creating anything.** For each candidate show: number, proposed title, `type:research` (HITL) or `type:spike` (AFK), blocked-by edges, and a one-line statement of what decision it unblocks.
 
 Also state the proposed **epic title** and the `docs/discovery/<topic>.md` slug the eventual findings will land under.
 
@@ -147,7 +147,7 @@ No branch and no PR: a question issue produces knowledge, not code. The branch/P
 ## `run --all` — fan-out rules
 
 - **Only AFK spikes fan out.** Dispatch background subagents across the unblocked `type:spike` issues, one subagent per issue, each following the AFK procedure above.
-- **All HITL questions are batched into one `grill-me` interview** — never N separate prompts at the user. Collect them, interview once, then write each answer back to its own issue.
+- **All HITL questions are batched into one `grilling` interview** — never N separate prompts at the user. Collect them, interview once, then write each answer back to its own issue.
 - **Respect the dependency graph.** Only `blocked_by == 0` issues are eligible. After a wave closes, re-evaluate: newly unblocked spikes become eligible for the next wave.
 - Each subagent owns exactly one issue: its own housekeeping, its own temp dir, its own `## Answer` write-back and close. Report a summary table (issue, verdict, evidence) when the wave finishes.
 - If a subagent's finding contradicts another's, surface the conflict to the user rather than picking a winner.
