@@ -6,12 +6,12 @@
 
 Goal of the phase: navigate the solution design — lock the technical decisions, draw the shape of the solution, and sketch the work — without yet creating any implementation issues.
 
-## 1. Lock decisions (delegate to `grill-with-docs`)
+## 1. Lock decisions (delegate to `grilling` + `domain-modeling`)
 
-Run `grill-with-docs` against the Discovery findings. It owns the mechanics; honor them:
+Call the Skill tool twice against the Discovery findings — `grilling` to run the interview, `domain-modeling` to keep the domain model current as decisions crystallize. They own the mechanics; the formats are this skill's own:
 
-- **ADRs** in `docs/adr/` using its [ADR-FORMAT.md](../grill-with-docs/ADR-FORMAT.md) — sequential `NNNN-slug.md`, created lazily, one paragraph is fine. Only offer an ADR when the decision is **hard to reverse**, **surprising without context**, and **the result of a real trade-off**.
-- **`CONTEXT.md`** glossary updates using its [CONTEXT-FORMAT.md](../grill-with-docs/CONTEXT-FORMAT.md) — sharpen fuzzy/overloaded terms, flag conflicts, keep it a glossary (no implementation detail).
+- **ADRs** in `docs/adr/` using [ADR-FORMAT.md](./ADR-FORMAT.md) — sequential `NNNN-slug.md`, created lazily, one paragraph is fine. Only offer an ADR when the decision is **hard to reverse**, **surprising without context**, and **the result of a real trade-off**.
+- **`CONTEXT.md`** glossary updates using [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md) — sharpen fuzzy/overloaded terms, flag conflicts, keep it a glossary (no implementation detail).
 
 These are the "technical decisions locked somewhere" — versioned in the repo, reviewable in the PR. **One decision per ADR, one concern per diagram** (the atomicity directive — see [SKILL.md](./SKILL.md)): split a sprawling decision into separate ADRs rather than writing one omnibus record.
 
