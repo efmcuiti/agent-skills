@@ -144,6 +144,7 @@ A conforming executor is a **dev-loop adapter**: a skill whose `SKILL.md` declar
 **Conforming executors today:**
 
 - **`ruby-dev`** — standalone Ruby (gems, CLIs, Rack/Sinatra). Not Rails.
+- **`node-dev`** — Node scripts, CLIs, and small services (`node:test`).
 
 ### When a project has no conforming executor
 
