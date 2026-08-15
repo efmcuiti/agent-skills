@@ -1,2 +1,26 @@
 .DS_Store
 *.bak
+
+# Third-party skills. Installed and updated by `npx skills`, restored by
+# ./bootstrap.sh, recorded in .skill-lock.json. Listed by name rather than
+# ignoring skills/* and negating: an allowlist would silently ignore future
+# first-party skills.
+skills/codebase-design/
+skills/domain-modeling/
+skills/find-skills/
+skills/grill-me/
+skills/grill-with-docs/
+skills/grilling/
+skills/handoff/
+skills/improve-codebase-architecture/
+skills/prototype/
+skills/writing-for-agents/
+
+# Retired third-party skills, deleted upstream. Ignored so they do not
+# reappear as untracked before step 4 removes them from disk.
+skills/setup-matt-pocock-skills/
+skills/tdd/
+skills/to-issues/
+skills/to-prd/
+skills/write-a-skill/
+skills/zoom-out/
